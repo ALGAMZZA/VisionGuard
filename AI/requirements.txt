@@ -1,0 +1,12 @@
+numpy
+pandas
+matplotlib
+scikit-learn
+xgboost
+tensorflow
+fastapi
+uvicorn
+requests
+pyspark
+jupyter
+ipykernel
