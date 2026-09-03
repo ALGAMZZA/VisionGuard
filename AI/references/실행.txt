@@ -1,0 +1,15 @@
+## 설치
+$> pip install ultralytics opencv-python numpy deep-sort-realtime
+
+
+## 가상 환경에서 실행
+$> python DeepSort.py --source ./data/collision2.mp4
+
+## 결과 저장
+$> python deepsort_collision_alarm.py --source collision2.mp4 --save result.mp4
+
+
+
+만약 pkg 리소스 에러나면
+python -m pip install --upgrade pip
+python -m pip install "setuptools<81"

@@ -1,0 +1,10 @@
+# Copy this file to dataset.yaml and update path for the local environment.
+path: ../data
+train: images/train
+val: images/val
+test: images/test
+
+names:
+  0: person
+  1: forklift
+
