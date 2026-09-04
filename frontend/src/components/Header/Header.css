@@ -1,0 +1,246 @@
+.header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 65px;
+  z-index: 90;
+  display: flex;
+  height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px 0 18px;
+  background: #171717;
+  border-bottom: 1px solid rgba(255, 149, 0, 0.18);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.24);
+  transition: left 200ms ease;
+}
+
+.header--sidebar-expanded {
+  left: 220px;
+}
+
+.header__logo {
+  display: block;
+  width: auto;
+  height: 38px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.header__notification {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  color: #ead2bd;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease,
+    border-color 160ms ease;
+}
+
+.header__notification svg {
+  width: 21px;
+  height: 21px;
+  stroke-width: 1.8;
+}
+
+.header__notification:hover {
+  color: #ffb45c;
+  background: #252525;
+  border-color: rgba(255, 149, 0, 0.22);
+}
+
+.header__notification:focus-visible {
+  outline: 2px solid #ff9500;
+  outline-offset: 2px;
+}
+
+.header__notification-area {
+  position: relative;
+}
+
+.header__notification-count {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  display: grid;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  place-items: center;
+  color: #fff;
+  background: #ff3b30;
+  border: 2px solid #171717;
+  border-radius: 9px;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.notification-popover {
+  position: absolute;
+  top: 48px;
+  right: 0;
+  width: 340px;
+  overflow: hidden;
+  color: #ead2bd;
+  background: #181818;
+  border: 1px solid #3b3531;
+  border-radius: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+.notification-popover__header {
+  display: flex;
+  min-height: 57px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  background: #141414;
+  border-bottom: 1px solid #35302d;
+}
+
+.notification-popover__header strong,
+.notification-popover__header span {
+  display: block;
+}
+
+.notification-popover__header strong {
+  color: #f0e4d9;
+  font-size: 13px;
+}
+
+.notification-popover__header span {
+  margin-top: 4px;
+  color: #ff756d;
+  font-size: 9px;
+}
+
+.notification-popover__header button {
+  color: #91877f;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.notification-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px 1fr 16px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 13px;
+  color: inherit;
+  border-bottom: 1px solid #302c29;
+  text-decoration: none;
+  transition: background-color 150ms ease;
+}
+
+.notification-item:hover {
+  background: #25211f;
+}
+
+.notification-item.is-unread::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: #ff3b30;
+  content: '';
+}
+
+.notification-item__icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  color: #ffb13c;
+  background: #3a2b16;
+  border-radius: 50%;
+}
+
+.notification-item--critical .notification-item__icon,
+.notification-item--accident .notification-item__icon {
+  color: #ff665c;
+  background: #411a18;
+}
+
+.notification-item strong,
+.notification-item p,
+.notification-item time {
+  display: block;
+}
+
+.notification-item strong {
+  color: #e6d7cb;
+  font-size: 11px;
+}
+
+.notification-item p {
+  overflow: hidden;
+  margin: 4px 0;
+  color: #a39890;
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-item time {
+  color: #746d67;
+  font-family: monospace;
+  font-size: 8px;
+}
+
+.notification-item__arrow {
+  color: #746d67;
+}
+
+.notification-popover__footer {
+  display: flex;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: #ffad45;
+  background: #141414;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+@media (max-width: 760px) {
+  .header {
+    left: 64px;
+    height: 56px;
+    padding-inline: 12px;
+  }
+
+  .header--sidebar-expanded {
+    left: 200px;
+  }
+
+  .header__logo {
+    height: 40px;
+  }
+}
+
+@media (max-width: 420px) {
+  .header__logo {
+    width: min(210px, calc(100vw - 132px));
+    height: auto;
+  }
+
+  .notification-popover {
+    position: fixed;
+    top: 57px;
+    right: 8px;
+    left: 72px;
+    width: auto;
+  }
+}
