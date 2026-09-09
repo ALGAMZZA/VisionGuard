@@ -122,6 +122,10 @@ AI/models/*
 !AI/models/checkpoints/
 !AI/models/production/
 !AI/models/archive/
+AI/models/base/*
+AI/models/checkpoints/*
+AI/models/production/*
+AI/models/archive/*
 !AI/models/base/.gitkeep
 !AI/models/checkpoints/.gitkeep
 !AI/models/production/.gitkeep

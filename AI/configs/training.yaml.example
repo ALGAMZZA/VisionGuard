@@ -1,8 +1,14 @@
-model: yolov8n.pt
+data: /mnt/d/VisionGuardData/yolo-nearmiss-00001-v2/dataset.yaml
+model: yolo11n.pt
 epochs: 100
 imgsz: 640
 batch: 16
-device: 0
-project: models/checkpoints
+device: null
+workers: 4
+project: AI/models/checkpoints
 name: visionguard
-
+patience: 25
+seed: 42
+cache: false
+fraction: 1.0
+resume: false
