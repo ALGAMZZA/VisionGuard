@@ -246,7 +246,7 @@
   border-radius: 50%;
 }
 
-.live-map__object--critical {
+.live-map__object--danger {
   color: #fff;
   background: #c73027;
   border-color: #ff665c;
@@ -254,7 +254,7 @@
   animation: danger-pulse 1.25s infinite;
 }
 
-.live-map__object--critical > span {
+.live-map__object--danger > span {
   color: #ff746b;
 }
 
@@ -436,7 +436,7 @@
   border-radius: 50%;
 }
 
-.telemetry-object--critical > div > i {
+.telemetry-object--danger > div > i {
   background: #ff3b30;
 }
 
@@ -459,7 +459,7 @@
   font-style: normal;
 }
 
-.telemetry-object--critical em {
+.telemetry-object--danger em {
   color: #fff;
   background: #d93a30;
 }
