@@ -1,17 +1,16 @@
 import { useMemo, useState } from 'react';
 import { FiAlertTriangle, FiCalendar, FiMap, FiMapPin, FiTrendingUp } from 'react-icons/fi';
+import { riskLevelLabels } from '../utils/riskEvent';
 import './RiskHeatmapPage.css';
 
 const hotspots = [
-  { id: 1, x: 26, y: 56, zone: '자재 적재 구역', cctv: 'CCTV 01', level: 'critical', today: 38, week: 142, month: 486 },
-  { id: 2, x: 72, y: 32, zone: '교차로 B', cctv: 'CCTV 04', level: 'critical', today: 31, week: 118, month: 392 },
+  { id: 1, x: 26, y: 56, zone: '자재 적재 구역', cctv: 'CCTV 01', level: 'danger', today: 38, week: 142, month: 486 },
+  { id: 2, x: 72, y: 32, zone: '교차로 B', cctv: 'CCTV 04', level: 'danger', today: 31, week: 118, month: 392 },
   { id: 3, x: 48, y: 43, zone: '생산 라인 2', cctv: 'CCTV 02', level: 'warning', today: 19, week: 89, month: 267 },
   { id: 4, x: 65, y: 68, zone: '정문 입구', cctv: 'CCTV 02', level: 'warning', today: 12, week: 56, month: 181 },
-  { id: 5, x: 18, y: 23, zone: '하역장', cctv: 'CCTV 03', level: 'caution', today: 8, week: 34, month: 102 },
-  { id: 6, x: 83, y: 61, zone: '후계실 앞', cctv: 'CCTV 04', level: 'safe', today: 3, week: 12, month: 41 },
+  { id: 5, x: 18, y: 23, zone: '하역장', cctv: 'CCTV 03', level: 'warning', today: 8, week: 34, month: 102 },
+  { id: 6, x: 83, y: 61, zone: '휴게실 앞', cctv: 'CCTV 04', level: 'safe', today: 0, week: 0, month: 0 },
 ];
-
-const levelLabels = { critical: '심각', warning: '경고', caution: '주의', safe: '안전' };
 
 function FactoryFloorPlan({ spots, period }) {
   const max = Math.max(...spots.map((spot) => spot[period]), 1);
@@ -41,10 +40,10 @@ function RiskHeatmapPage() {
 
   return (
     <div className="risk-heatmap">
-      <header className="risk-heatmap__heading"><div><h1>위험구역 히트맵</h1><p>공장 내 위험 발생 위치 및 빈도 분석</p></div><span><FiMapPin /> 누적 위험 발생 <strong>{total}건</strong></span></header>
+      <header className="risk-heatmap__heading"><div><h1>위험구역 히트맵</h1><p>데모 화면 · 위험 발생 위치와 집계 수치는 예시입니다.</p></div><span><FiMapPin /> 누적 위험 발생 <strong>{total}건</strong></span></header>
       <section className="heatmap-filters">
         <div className="heatmap-filter"><FiCalendar /><span>조회 기간</span>{[['today', '오늘'], ['week', '7일'], ['month', '30일']].map(([key, label]) => <button className={period === key ? 'is-active' : ''} key={key} onClick={() => setPeriod(key)}>{label}</button>)}</div>
-        <label className="heatmap-filter"><FiAlertTriangle /><span>위험 단계</span><select value={level} onChange={(event) => setLevel(event.target.value)}><option value="all">전체 단계</option><option value="critical">심각</option><option value="warning">경고</option><option value="caution">주의</option><option value="safe">안전</option></select></label>
+        <label className="heatmap-filter"><FiAlertTriangle /><span>위험 단계</span><select value={level} onChange={(event) => setLevel(event.target.value)}><option value="all">전체 단계</option>{Object.entries(riskLevelLabels).map(([key, label]) => <option key={key} value={key.toLowerCase()}>{label}</option>)}</select></label>
       </section>
       <div className="risk-heatmap__layout">
         <div className="risk-heatmap__main">
@@ -53,7 +52,7 @@ function RiskHeatmapPage() {
         </div>
         <aside className="hotspot-ranking">
           <div className="heatmap-panel__title"><strong><FiAlertTriangle /> 위험 구역 순위</strong><span>{rankedSpots.length}개 구역</span></div>
-          <div className="hotspot-ranking__list">{rankedSpots.map((spot, index) => { const value = spot[period]; const width = rankedSpots[0] ? value / rankedSpots[0][period] * 100 : 0; return <article className="hotspot-rank" key={spot.id}><div><span className="hotspot-rank__number">{String(index + 1).padStart(2, '0')}</span><div><strong>{spot.zone}</strong><small>{spot.cctv}</small></div><em className={`hotspot-rank__level hotspot-rank__level--${spot.level}`}>{levelLabels[spot.level]}</em></div><div className="hotspot-rank__count"><span>사건 수: <b>{value}건</b></span><span>{Math.round(value / Math.max(total, 1) * 100)}%</span></div><div className={`hotspot-rank__progress hotspot-rank__progress--${spot.level}`}><i style={{ width: `${width}%` }} /></div></article>; })}{!rankedSpots.length && <p className="hotspot-ranking__empty">선택한 위험 단계의 기록이 없습니다.</p>}</div>
+          <div className="hotspot-ranking__list">{rankedSpots.map((spot, index) => { const value = spot[period]; const width = rankedSpots[0] ? value / Math.max(rankedSpots[0][period], 1) * 100 : 0; return <article className="hotspot-rank" key={spot.id}><div><span className="hotspot-rank__number">{String(index + 1).padStart(2, '0')}</span><div><strong>{spot.zone}</strong><small>{spot.cctv}</small></div><em className={`hotspot-rank__level hotspot-rank__level--${spot.level}`}>{riskLevelLabels[spot.level.toUpperCase()]}</em></div><div className="hotspot-rank__count"><span>사건 수: <b>{value}건</b></span><span>{Math.round(value / Math.max(total, 1) * 100)}%</span></div><div className={`hotspot-rank__progress hotspot-rank__progress--${spot.level}`}><i style={{ width: `${width}%` }} /></div></article>; })}{!rankedSpots.length && <p className="hotspot-ranking__empty">선택한 위험 단계의 기록이 없습니다.</p>}</div>
         </aside>
       </div>
     </div>

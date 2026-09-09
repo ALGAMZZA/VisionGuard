@@ -222,9 +222,6 @@
   --spot-color: #ff9500;
 }
 
-.heatmap-spot--caution {
-  --spot-color: #ffcc00;
-}
 
 .heatmap-spot--safe {
   --spot-color: #5d675e;
@@ -346,10 +343,6 @@
   background: #483418;
 }
 
-.hotspot-rank__level--caution {
-  color: #ffe071;
-  background: #403c1c;
-}
 
 .hotspot-rank__level--safe {
   color: #aba49d;
@@ -383,9 +376,6 @@
   background: #ff9500;
 }
 
-.hotspot-rank__progress--caution i {
-  background: #ffcc00;
-}
 
 .hotspot-rank__progress--safe i {
   background: #77716c;
