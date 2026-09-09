@@ -202,7 +202,7 @@
   font-size: 9px;
 }
 
-.alert-list__item--critical .alert-list__content b,.alert-list__item--accident .alert-list__content b {
+.alert-list__item--DANGER .alert-list__content b {
   color: #fff;
   background: #d83b31;
 }
@@ -422,12 +422,23 @@
 }
 
 .alert-analysis dd {
+  overflow-wrap: anywhere;
   margin: 7px 0 0;
   color: #ffb04b;
   font-family: monospace;
   font-size: 13px;
   font-weight: 700;
 }
+
+.alert-list__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+}
+
+.alert-history button:disabled { opacity: .5; cursor: default; }
 
 @media (max-width:1050px) {
   .alert-history__summaries {

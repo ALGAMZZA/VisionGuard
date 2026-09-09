@@ -165,8 +165,7 @@
   border-radius: 50%;
 }
 
-.notification-item--critical .notification-item__icon,
-.notification-item--accident .notification-item__icon {
+.notification-item--DANGER .notification-item__icon {
   color: #ff665c;
   background: #411a18;
 }

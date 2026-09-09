@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiAlertTriangle, FiBell, FiChevronRight } from 'react-icons/fi';
-import { alerts } from '../../data/alerts';
+import { getRiskEvents } from '../../api/visionGuardApi';
+import { getApiErrorMessage } from '../../api/client';
+import { formatDateTime, riskLevelLabels } from '../../utils/riskEvent';
 import visionGuardLogo from '../../assets/images/vision-guard-logo.png';
 import './Header.css';
 
@@ -17,7 +19,21 @@ function VisionGuardLogo() {
 
 function Header({ isSidebarExpanded }) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const unreadCount = alerts.filter((alert) => !alert.isRead).length;
+  const [riskEvents, setRiskEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!isNotificationOpen) return undefined;
+    const controller = new AbortController();
+    setLoading(true);
+    setError('');
+    setRiskEvents([]);
+    getRiskEvents({ size: 4 }, { signal: controller.signal })
+      .then((data) => { if (!controller.signal.aborted) setRiskEvents(data.content); })
+      .catch((err) => { if (!controller.signal.aborted) setError(getApiErrorMessage(err)); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [isNotificationOpen]);
 
   return (
     <header className={`header${isSidebarExpanded ? ' header--sidebar-expanded' : ''}`}>
@@ -26,17 +42,19 @@ function Header({ isSidebarExpanded }) {
       <div className="header__notification-area">
         <button className="header__notification" type="button" aria-label="알림 확인" aria-expanded={isNotificationOpen} onClick={() => setIsNotificationOpen((current) => !current)}>
           <FiBell aria-hidden="true" />
-          {unreadCount > 0 && <span className="header__notification-count">{unreadCount}</span>}
         </button>
 
         {isNotificationOpen && (
           <section className="notification-popover" aria-label="최근 알림">
-            <div className="notification-popover__header"><div><strong>최근 알림</strong><span>미확인 {unreadCount}건</span></div><button type="button" onClick={() => setIsNotificationOpen(false)}>닫기</button></div>
+            <div className="notification-popover__header"><div><strong>최근 알림</strong><span>최근 위험 이벤트</span></div><button type="button" onClick={() => setIsNotificationOpen(false)}>닫기</button></div>
             <div className="notification-popover__list">
-              {alerts.slice(0, 4).map((alert) => (
-                <Link className={`notification-item notification-item--${alert.levelKey}${!alert.isRead ? ' is-unread' : ''}`} to={`/alerts?alert=${alert.id}`} key={alert.id} onClick={() => setIsNotificationOpen(false)}>
+              {loading && <p role="status">불러오는 중입니다.</p>}
+              {error && <p role="alert">{error}</p>}
+              {!loading && !error && !riskEvents.length && <p>위험 이벤트가 없습니다.</p>}
+              {riskEvents.map((event) => (
+                <Link className={`notification-item notification-item--${event.level}`} to={`/alerts?eventId=${event.id}`} key={event.id} onClick={() => setIsNotificationOpen(false)}>
                   <span className="notification-item__icon"><FiAlertTriangle /></span>
-                  <div><strong>{alert.level}</strong><p>{alert.cctv} · {alert.location}</p><time>{alert.date} {alert.time}</time></div>
+                  <div><strong>{riskLevelLabels[event.level] || event.level}</strong><p>{event.cameraId}</p><time>{formatDateTime(event.capturedAt)}</time></div>
                   <FiChevronRight className="notification-item__arrow" />
                 </Link>
               ))}
