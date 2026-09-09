@@ -1,0 +1,429 @@
+.risk-heatmap {
+  --panel: #181818;
+  --line: #34302d;
+  --muted: #958b83;
+  min-height: calc(100vh - 104px);
+  color: #ead2bd;
+}
+
+.risk-heatmap__heading,
+.risk-heatmap__heading > span,
+.heatmap-filter,
+.heatmap-panel__title,
+.heatmap-panel__title strong,
+.hotspot-rank > div,
+.hotspot-rank__count,
+.heatmap-map__legend {
+  display: flex;
+  align-items: center;
+}
+
+.risk-heatmap__heading {
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.risk-heatmap__heading h1 {
+  margin: 0 0 5px;
+  font-size: 24px;
+}
+
+.risk-heatmap__heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.risk-heatmap__heading > span {
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.risk-heatmap__heading > span strong {
+  color: #ffad45;
+}
+
+.heatmap-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 9px;
+  margin-bottom: 12px;
+  background: #121212;
+  border: 1px solid var(--line);
+}
+
+.heatmap-filter {
+  gap: 6px;
+  color: #b8aaa0;
+  font-size: 10px;
+}
+
+.heatmap-filter > svg {
+  color: #ff9e2f;
+}
+
+.heatmap-filter > span {
+  margin-right: 3px;
+}
+
+.heatmap-filter button,
+.heatmap-filter select {
+  min-height: 30px;
+  padding: 0 12px;
+  color: #a99e95;
+  background: #202020;
+  border: 1px solid #3b3733;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.heatmap-filter button.is-active {
+  color: #151515;
+  background: #ff9500;
+  border-color: #ff9500;
+  font-weight: 800;
+}
+
+.heatmap-filter select {
+  color-scheme: dark;
+  outline: 0;
+}
+
+.risk-heatmap__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 12px;
+}
+
+.risk-heatmap__main {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.heatmap-panel,
+.heatmap-chart,
+.hotspot-ranking {
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.heatmap-panel__title {
+  min-height: 42px;
+  justify-content: space-between;
+  padding: 0 12px;
+  background: #151515;
+  border-bottom: 1px solid var(--line);
+}
+
+.heatmap-panel__title strong {
+  gap: 7px;
+  color: #d9ccc1;
+  font-size: 11px;
+}
+
+.heatmap-panel__title strong svg {
+  color: #ffad45;
+}
+
+.heatmap-panel__title > span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.heatmap-map {
+  position: relative;
+  min-height: 470px;
+  overflow: hidden;
+  background: #111416;
+}
+
+.heatmap-map__plan {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.72;
+}
+
+.floor-walls {
+  fill: none;
+  stroke: #596064;
+  stroke-width: 4;
+}
+
+.floor-machines {
+  fill: #202528;
+  stroke: #484f52;
+  stroke-width: 2;
+}
+
+.floor-labels {
+  fill: #697075;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.heatmap-spot {
+  --spot-color: #ff3b30;
+  position: absolute;
+  z-index: 2;
+  width: 12px;
+  height: 12px;
+  padding: 0;
+  background: var(--spot-color);
+  border: 2px solid #fff4dc;
+  border-radius: 50%;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+}
+
+.heatmap-spot i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  background: var(--spot-color);
+  border-radius: 50%;
+  filter: blur(18px);
+  opacity: 0.85;
+  transform: translate(-50%, -50%) scale(var(--spot-scale));
+}
+
+.heatmap-spot > span {
+  position: absolute;
+  bottom: 17px;
+  left: 50%;
+  display: none;
+  padding: 6px 8px;
+  color: #eee0d4;
+  background: #111e;
+  border: 1px solid #54463d;
+  font-size: 9px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.heatmap-spot > span b {
+  margin-left: 6px;
+  color: #ffad45;
+}
+
+.heatmap-spot:hover > span,
+.heatmap-spot:focus > span {
+  display: block;
+}
+
+.heatmap-spot--warning {
+  --spot-color: #ff9500;
+}
+
+.heatmap-spot--caution {
+  --spot-color: #ffcc00;
+}
+
+.heatmap-spot--safe {
+  --spot-color: #5d675e;
+}
+
+.heatmap-map__legend {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  gap: 10px;
+  padding: 6px 8px;
+  color: #a99e95;
+  background: #111d;
+  font-size: 9px;
+}
+
+.heatmap-map__legend span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmap-map__legend i {
+  width: 8px;
+  height: 8px;
+  background: #ffcc00;
+  border-radius: 50%;
+}
+
+.heatmap-map__legend .medium {
+  background: #ff9500;
+}
+
+.heatmap-map__legend .high {
+  background: #ff3b30;
+}
+
+.heatmap-chart__body {
+  display: flex;
+  height: 180px;
+  align-items: flex-end;
+  justify-content: space-around;
+  padding: 18px 14px 24px;
+  background-image: linear-gradient(#262626 1px, transparent 1px);
+  background-size: 100% 25%;
+}
+
+.heatmap-chart__bar {
+  display: flex;
+  width: 6%;
+  height: 100%;
+  align-items: center;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.heatmap-chart__bar i {
+  width: min(18px, 70%);
+  background: linear-gradient(#ffcf56, #ff9500);
+  box-shadow: 0 0 7px rgba(255, 149, 0, 0.25);
+}
+
+.heatmap-chart__bar span {
+  color: #8e857e;
+  font-family: monospace;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.hotspot-ranking__list {
+  padding: 5px 12px;
+}
+
+.hotspot-rank {
+  padding: 15px 0;
+  border-bottom: 1px solid #302d2a;
+}
+
+.hotspot-rank > div:first-child {
+  gap: 9px;
+}
+
+.hotspot-rank__number {
+  color: #625b56;
+  font-family: monospace;
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.hotspot-rank strong,
+.hotspot-rank small {
+  display: block;
+}
+
+.hotspot-rank strong {
+  color: #d7c9bd;
+  font-size: 11px;
+}
+
+.hotspot-rank small {
+  margin-top: 4px;
+  color: #817871;
+  font-size: 9px;
+}
+
+.hotspot-rank__level {
+  padding: 3px 5px;
+  margin-left: auto;
+  color: #ff7a70;
+  background: #4a1e1b;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.hotspot-rank__level--warning {
+  color: #ffb13d;
+  background: #483418;
+}
+
+.hotspot-rank__level--caution {
+  color: #ffe071;
+  background: #403c1c;
+}
+
+.hotspot-rank__level--safe {
+  color: #aba49d;
+  background: #34312f;
+}
+
+.hotspot-rank__count {
+  justify-content: space-between;
+  margin: 11px 0 7px;
+  color: #91877f;
+  font-size: 9px;
+}
+
+.hotspot-rank__count b {
+  color: #e8d5c4;
+}
+
+.hotspot-rank__progress {
+  height: 5px;
+  overflow: hidden;
+  background: #292725;
+}
+
+.hotspot-rank__progress i {
+  display: block;
+  height: 100%;
+  background: #ff3b30;
+}
+
+.hotspot-rank__progress--warning i {
+  background: #ff9500;
+}
+
+.hotspot-rank__progress--caution i {
+  background: #ffcc00;
+}
+
+.hotspot-rank__progress--safe i {
+  background: #77716c;
+}
+
+.hotspot-ranking__empty {
+  padding: 40px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 1000px) {
+  .risk-heatmap__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .heatmap-map {
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 620px) {
+  .risk-heatmap__heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .heatmap-map {
+    min-height: 310px;
+  }
+
+  .heatmap-filter {
+    flex-wrap: wrap;
+  }
+
+  .heatmap-panel__title > span {
+    display: none;
+  }
+}
