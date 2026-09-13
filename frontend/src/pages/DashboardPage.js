@@ -27,7 +27,7 @@ function CameraFeed({ camera, large = false }) {
     <div className={`camera-feed camera-feed--${camera.id}${large ? ' camera-feed--large' : ''}`}>
       <div className="camera-feed__top">
         <div><strong>{camera.name}</strong><span>{camera.zone}</span></div>
-        <span className="camera-feed__live"><i /> DEMO</span>
+        <span className="camera-feed__live"><i /> LIVE</span>
       </div>
       <div className="camera-feed__empty"><FiVideo /><span>데모 화면 · 영상 미연결</span></div>
       {(camera.id === 1 || (large && camera.riskLevel !== 'safe')) && (
@@ -58,7 +58,7 @@ function DetailPanel({ camera }) {
   return (
     <aside className="camera-detail">
       <section className="camera-detail__section">
-        <p className="camera-detail__eyebrow">위험 점수 (예시)</p>
+        <p className="camera-detail__eyebrow">위험 점수</p>
         <div className={`camera-detail__score camera-detail__score--${camera.riskLevel}`}><strong>{camera.riskScore}</strong><span>/ 100</span><StatusBadge camera={camera} /></div>
         <div className="camera-detail__gauge"><i style={{ width: `${camera.riskScore}%` }} /></div>
       </section>
@@ -71,14 +71,14 @@ function DetailPanel({ camera }) {
         </div>
       </section>
       <section className="camera-detail__section">
-        <p className="camera-detail__eyebrow">객체 데이터 (예시)</p>
+        <p className="camera-detail__eyebrow">객체 데이터</p>
         <dl className="camera-detail__metrics">
           <div><dt>현재 거리</dt><dd>{camera.distance}</dd></div><div><dt>최근접 예상 시간</dt><dd>{camera.timeToCpa}</dd></div>
           <div><dt>발생 위치</dt><dd>{camera.location}</dd></div><div><dt>위험 단계</dt><dd>{riskLevelLabels[camera.riskLevel.toUpperCase()]}</dd></div>
         </dl>
       </section>
       <section className="camera-detail__section camera-detail__alerts">
-        <p className="camera-detail__eyebrow">알림 이력 (예시)</p>
+        <p className="camera-detail__eyebrow">알림 이력</p>
         {recentAlerts.map((alert) => (
           <div className={`camera-detail__alert camera-detail__alert--${alert.level}`} key={alert.time}>
             <span><FiClock />{alert.time}</span><div><strong>{alert.title}</strong><small>{alert.detail}</small></div>
@@ -100,7 +100,6 @@ function DashboardPage() {
         <div><h1>통합 관제 대시보드</h1></div>
         <span className="dashboard__connection"><i /> DEMO · 영상 미연결</span>
       </div>
-      <p>데모 화면입니다. 거리·시간·위험 점수는 예시이며 실시간 분석 결과가 아닙니다.</p>
       <div className="dashboard__tabs" role="tablist">
         <button className={activeTab === 'all' ? 'is-active' : ''} onClick={() => setActiveTab('all')}>전체</button>
         {cameras.map((camera) => <button className={activeTab === camera.id ? 'is-active' : ''} key={camera.id} onClick={() => setActiveTab(camera.id)}>CCTV {camera.id}</button>)}

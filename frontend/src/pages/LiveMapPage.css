@@ -124,7 +124,7 @@
 .live-control__layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
-  min-height: 690px;
+  min-height: 660px;
   margin-top: 10px;
   gap: 10px;
 }
@@ -151,7 +151,7 @@
 
 .live-map {
   position: relative;
-  min-height: 610px;
+  min-height: 570px;
   overflow: hidden;
   background-color: #0d1113;
   background-image: linear-gradient(rgba(67, 96, 110, 0.1) 1px, transparent 1px),

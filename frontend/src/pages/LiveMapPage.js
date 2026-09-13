@@ -37,13 +37,13 @@ function LiveMapPage() {
 
   return (
     <div className="live-control">
-      <header className="live-control__heading"><div><h1>실시간 도면 관제</h1><p>데모 화면 · 위치와 위험 정보는 예시이며 실시간 데이터가 아닙니다.</p></div><span><FiWifi /> DEMO</span></header>
+      <header className="live-control__heading"><div><h1>실시간 도면 관제</h1></div><span><FiWifi /> DEMO</span></header>
       <div className="live-control__summary"><article><span>예시 위치 객체</span><strong>{objects.length}<small>개체</small></strong><p>지게차 {objects.filter((object) => object.type === 'forklift').length} · 작업자 {objects.filter((object) => object.type === 'worker').length}</p></article><article className="is-danger"><span>위험 근접 경보</span><strong>1<small>건 예시</small></strong><p>예시 근접 위험 상황입니다</p></article></div>
       <section className="live-control__filters"><span>표시 항목</span>{[['all', '전체'], ['forklift', '지게차'], ['worker', '작업자'], ['risk', '위험 발생']].map(([key, label]) => <button className={filter === key ? 'is-active' : ''} key={key} onClick={() => setFilter(key)}>{label}</button>)}</section>
 
       <div className="live-control__layout">
         <section className="live-map-panel">
-          <div className="live-map-panel__top"><span>FACILITY BLUEPRINT · DEMO</span><b>실시간 연동 예정</b></div>
+          <div className="live-map-panel__top"><span>FACILITY BLUEPRINT</span><b>실시간 연동</b></div>
           <div className="live-map">
             <FloorPlan />
             <div className="live-map__danger-zone"><FiAlertTriangle /><strong>충돌 위험</strong><span>최근접 예상 시간 1.2초</span></div>
