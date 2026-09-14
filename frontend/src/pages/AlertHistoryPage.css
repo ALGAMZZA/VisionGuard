@@ -440,6 +440,17 @@
 
 .alert-history button:disabled { opacity: .5; cursor: default; }
 
+.alert-history__actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.alert-history__actions button {
+  padding: 9px 12px;
+  color: #ffb24e;
+  background: #202020;
+  border: 1px solid #514235;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.alert-history__actions button:focus-visible { outline: 2px solid #ffb24e; outline-offset: 2px; }
+
 @media (max-width:1050px) {
   .alert-history__summaries {
     grid-template-columns: repeat(2, 1fr);
