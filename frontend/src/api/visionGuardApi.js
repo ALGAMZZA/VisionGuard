@@ -20,6 +20,14 @@ export async function analyzeFrame({ file, cameraId, frameId, capturedAt, stream
   return data;
 }
 
+/** Bridge가 백엔드로 전송한 카메라의 가장 최근 분석 결과를 조회합니다. */
+export async function getLatestAnalysis(cameraId, { signal } = {}) {
+  const { data } = await apiClient.get('/analyses/latest', {
+    params: { cameraId }, signal,
+  });
+  return data;
+}
+
 /** from/to: UTC 오프셋을 포함한 ISO 8601. page는 0부터 시작합니다.
  * level/status/streamId 필터는 서버가 지원하지 않습니다.
  * @returns {Promise<{content: object[], page: number, size: number, totalElements: number, totalPages: number}>}

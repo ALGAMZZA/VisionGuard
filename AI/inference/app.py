@@ -48,7 +48,7 @@ def _get_detector_config() -> DetectorConfig:
         _detector_config = DetectorConfig(
             model_path=os.getenv(
                 "VISIONGUARD_MODEL_PATH",
-                "AI/models/production/best.pt",
+                "AI/models/checkpoints/visionguard-yolo11n-nvidia-unity-v1/weights/best.pt",
             ),
             confidence=float(
                 os.getenv("VISIONGUARD_CONFIDENCE", "0.35")

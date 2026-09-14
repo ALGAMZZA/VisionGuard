@@ -10,6 +10,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.ObjectMapper;
@@ -59,15 +63,35 @@ public class RiskEventController {
                 mapper.readValue(event.getPredictionJson(), PredictionResult.class));
     }
 
+    @GetMapping("/{id}/video")
+    public ResponseEntity<Resource> video(@PathVariable long id) {
+        var event = events.findById(id).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "위험 이벤트를 찾을 수 없습니다."));
+        if (event.getVideoPath() == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "아직 생성된 이벤트 영상이 없습니다.");
+        }
+        var resource = new FileSystemResource(event.getVideoPath());
+        if (!resource.exists() || !resource.isReadable()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "이벤트 영상 파일을 찾을 수 없습니다.");
+        }
+        var mediaType = event.getVideoPath().toLowerCase().endsWith(".webm")
+                ? "video/webm" : "video/mp4";
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(mediaType))
+                .body(resource);
+    }
+
     public record EventSummary(Long id, String cameraId, String frameId, Instant capturedAt,
                                Instant createdAt, PredictionResult.RiskLevel level, String streamId,
                                Integer personTrackId, Integer forkliftTrackId, Instant lastSeenAt,
-                               Instant endedAt, Long frameCount, String status, String endReason) {
+                               Instant endedAt, Long frameCount, String status, String endReason,
+                               String videoUrl) {
         static EventSummary of(RiskEvent e) {
             return new EventSummary(e.getId(), e.getCameraId(), e.getFrameId(),
                     e.getCapturedAt(), e.getCreatedAt(), e.getLevel(), e.getStreamId(),
                     e.getPersonTrackId(), e.getForkliftTrackId(), e.getLastSeenAt(),
-                    e.getEndedAt(), e.getFrameCount(), e.getStatus(), e.getEndReason());
+                    e.getEndedAt(), e.getFrameCount(), e.getStatus(), e.getEndReason(),
+                    e.getVideoPath() == null ? null : "/api/risk-events/" + e.getId() + "/video");
         }
     }
     public record EventPage(List<EventSummary> content, int page, int size, long totalElements, int totalPages) {}

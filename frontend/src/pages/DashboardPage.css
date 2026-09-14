@@ -181,6 +181,14 @@
   min-height: 590px;
 }
 
+.camera-feed__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .camera-feed::after {
   position: absolute;
   inset: 0;

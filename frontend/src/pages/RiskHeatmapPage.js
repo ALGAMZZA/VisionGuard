@@ -1,14 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { FiAlertTriangle, FiCalendar, FiMap, FiMapPin, FiTrendingUp } from 'react-icons/fi';
 import { riskLevelLabels } from '../utils/riskEvent';
+import { getRiskEvents } from '../api/visionGuardApi';
 import './RiskHeatmapPage.css';
 
-const hotspots = [
-  { id: 1, x: 26, y: 56, zone: '자재 적재 구역', cctv: 'CCTV 01', level: 'danger', today: 38, week: 142, month: 486 },
-  { id: 2, x: 48, y: 43, zone: '생산 라인 2', cctv: 'CCTV 02', level: 'warning', today: 19, week: 89, month: 267 },
-  { id: 3, x: 18, y: 23, zone: '하역장', cctv: 'CCTV 03', level: 'warning', today: 8, week: 34, month: 102 },
-  { id: 4, x: 83, y: 61, zone: '휴게실 앞', cctv: 'CCTV 04', level: 'safe', today: 0, week: 0, month: 0 },
+const hotspotDefinitions = [
+  { id: 1, cameraId: 'camera-1', x: 26, y: 56, zone: '자재 적재 구역', cctv: 'CCTV 01' },
+  { id: 2, cameraId: 'camera-2', x: 48, y: 43, zone: '제품 이동 통로', cctv: 'CCTV 02' },
 ];
+
+const levelRank = { safe: 0, warning: 1, danger: 2 };
+
+function rangeStart(period) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  if (period === 'week') start.setDate(start.getDate() - 6);
+  if (period === 'month') start.setDate(start.getDate() - 29);
+  return start.toISOString();
+}
 
 function FactoryFloorPlan({ spots, period }) {
   const max = Math.max(...spots.map((spot) => spot[period]), 1);
@@ -31,14 +40,42 @@ function FactoryFloorPlan({ spots, period }) {
 function RiskHeatmapPage() {
   const [period, setPeriod] = useState('today');
   const [level, setLevel] = useState('all');
-  const visibleSpots = useMemo(() => level === 'all' ? hotspots : hotspots.filter((spot) => spot.level === level), [level]);
+  const [events, setEvents] = useState([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    getRiskEvents({ from: rangeStart(period), page: 0, size: 100 }, { signal: controller.signal })
+      .then((page) => setEvents(page.content || []))
+      .catch(() => setEvents([]));
+    return () => controller.abort();
+  }, [period]);
+  const hotspots = useMemo(() => hotspotDefinitions.map((spot) => {
+    const related = events.filter((event) => event.cameraId === spot.cameraId);
+    const highest = related.reduce((best, event) => {
+      const candidate = String(event.level || 'SAFE').toLowerCase();
+      return levelRank[candidate] > levelRank[best] ? candidate : best;
+    }, 'safe');
+    return { ...spot, level: highest, [period]: related.length };
+  }), [events, period]);
+  const visibleSpots = useMemo(() => level === 'all' ? hotspots : hotspots.filter((spot) => spot.level === level), [hotspots, level]);
   const rankedSpots = useMemo(() => [...visibleSpots].sort((a, b) => b[period] - a[period]), [visibleSpots, period]);
   const total = visibleSpots.reduce((sum, spot) => sum + spot[period], 0);
-  const chartValues = period === 'today' ? [4, 9, 6, 18, 11, 7, 13, 21, 15, 10, 6, 3] : period === 'week' ? [32, 45, 38, 64, 51, 43, 72] : [42, 58, 76, 63, 81, 69, 92, 74, 88, 67, 55, 79];
+  const bucketCount = period === 'today' ? 12 : period === 'week' ? 7 : 10;
+  const chartValues = Array.from({ length: bucketCount }, () => 0);
+  events.forEach((event) => {
+    const date = new Date(event.capturedAt);
+    if (Number.isNaN(date.valueOf())) return;
+    const index = period === 'today'
+      ? Math.floor(date.getHours() / 2)
+      : period === 'week'
+        ? Math.max(0, 6 - Math.floor((Date.now() - date.valueOf()) / 86400000))
+        : Math.max(0, 9 - Math.floor((Date.now() - date.valueOf()) / (3 * 86400000)));
+    if (index >= 0 && index < chartValues.length) chartValues[index] += 1;
+  });
+  const chartMax = Math.max(...chartValues, 1);
 
   return (
     <div className="risk-heatmap">
-      <header className="risk-heatmap__heading"><div><h1>위험구역 히트맵</h1></div><span><FiMapPin /> 누적 위험 발생 <strong>{total}건</strong></span></header>
+      <header className="risk-heatmap__heading"><div><h1>위험구역 히트맵</h1></div><span><FiMapPin /> 조회 기간 위험 발생 <strong>{total}건</strong></span></header>
       <section className="heatmap-filters">
         <div className="heatmap-filter"><FiCalendar /><span>조회 기간</span>{[['today', '오늘'], ['week', '7일'], ['month', '30일']].map(([key, label]) => <button className={period === key ? 'is-active' : ''} key={key} onClick={() => setPeriod(key)}>{label}</button>)}</div>
         <label className="heatmap-filter"><FiAlertTriangle /><span>위험 단계</span><select value={level} onChange={(event) => setLevel(event.target.value)}><option value="all">전체 단계</option>{Object.entries(riskLevelLabels).map(([key, label]) => <option key={key} value={key.toLowerCase()}>{label}</option>)}</select></label>
@@ -46,7 +83,7 @@ function RiskHeatmapPage() {
       <div className="risk-heatmap__layout">
         <div className="risk-heatmap__main">
           <section className="heatmap-panel"><div className="heatmap-panel__title"><strong><FiMap /> 공장 위험 발생 분포</strong><span>위험 빈도가 높을수록 진하게 표시됩니다</span></div><FactoryFloorPlan spots={visibleSpots} period={period} /></section>
-          <section className="heatmap-chart"><div className="heatmap-panel__title"><strong><FiTrendingUp /> 위험 발생 추이</strong><span>{period === 'today' ? '시간별' : '기간별'} 집계</span></div><div className="heatmap-chart__body">{chartValues.map((value, index) => <div className="heatmap-chart__bar" key={index}><i style={{ height: `${Math.max(12, value)}%` }} /><span>{period === 'today' ? `${index * 2}:00` : period === 'week' ? `${index + 1}일` : `${index * 3 + 1}일`}</span></div>)}</div></section>
+          <section className="heatmap-chart"><div className="heatmap-panel__title"><strong><FiTrendingUp /> 위험 발생 추이</strong><span>{period === 'today' ? '시간별' : '기간별'} 집계</span></div><div className="heatmap-chart__body">{chartValues.map((value, index) => <div className="heatmap-chart__bar" key={index}><i style={{ height: `${value ? Math.max(12, value / chartMax * 100) : 0}%` }} /><span>{period === 'today' ? `${index * 2}:00` : period === 'week' ? `${index + 1}일` : `${index * 3 + 1}일`}</span></div>)}</div></section>
         </div>
         <aside className="hotspot-ranking">
           <div className="heatmap-panel__title"><strong><FiAlertTriangle /> 위험 구역 순위</strong><span>{rankedSpots.length}개 구역</span></div>

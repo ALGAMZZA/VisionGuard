@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import requests
@@ -25,23 +26,38 @@ CAMERAS = [
         "snapshot_url": "http://127.0.0.1:8081/snapshot.jpg",
         "stream_prefix": "unity-zone-02",
     },
+    {
+        "camera_id": "camera-3",
+        "snapshot_url": "http://127.0.0.1:8083/snapshot.jpg",
+        "stream_prefix": "unity-zone-03",
+    },
+    {
+        "camera_id": "camera-4",
+        "snapshot_url": "http://127.0.0.1:8084/snapshot.jpg",
+        "stream_prefix": "unity-zone-04",
+    },
 ]
 
-REQUEST_TIMEOUT = 15
+REQUEST_TIMEOUT = 35
 
 
 def get_wsl_ip() -> str:
     result = subprocess.run(
-        ["wsl", "hostname", "-I"],
+        ["wsl.exe", "-e", "sh", "-lc", "hostname -I"],
         capture_output=True,
-        text=True,
-        check=True,
+        check=False,
     )
 
-    addresses = result.stdout.strip().split()
+    # Windows Python's default text codec is commonly CP949. WSL can emit
+    # UTF-8 diagnostics, so decode the ASCII-only IP output explicitly.
+    stdout = result.stdout.decode("ascii", errors="ignore")
+    addresses = stdout.strip().split()
 
-    if not addresses:
-        raise RuntimeError("WSL IP를 찾을 수 없습니다.")
+    if result.returncode != 0 or not addresses:
+        stderr = result.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(
+            f"WSL IP를 찾을 수 없습니다. {stderr}".strip()
+        )
 
     return addresses[0]
 
@@ -124,14 +140,8 @@ def print_result(
     camera: dict,
     result: dict,
 ) -> None:
-
     prediction = result.get("prediction") or {}
-
-    risk = prediction.get(
-        "overall_risk",
-        "UNKNOWN",
-    )
-
+    risk = prediction.get("overall_risk", "UNKNOWN")
     processing_ms = prediction.get(
         "processing_time_ms",
         0,
@@ -180,6 +190,21 @@ def print_result(
     )
 
 
+def process_camera(
+    session: requests.Session,
+    backend_url: str,
+    camera: dict,
+) -> None:
+    try:
+        image = capture_snapshot(session, camera)
+        result = send_frame(session, backend_url, camera, image)
+        print_result(camera, result)
+    except requests.RequestException as exc:
+        print(f"[{camera['camera_id']}] 요청 실패: {exc}")
+    except Exception as exc:
+        print(f"[{camera['camera_id']}] 오류: {exc}")
+
+
 def end_stream(
     session: requests.Session,
     backend_url: str,
@@ -218,7 +243,7 @@ def end_stream(
 
 def main() -> None:
 
-    print("VisionGuard Unity 2-Camera Bridge")
+    print("VisionGuard Unity 4-Camera Bridge")
     print("--------------------------------")
 
     wsl_ip = get_wsl_ip()
@@ -251,11 +276,16 @@ def main() -> None:
     )
     print()
 
-    session = requests.Session()
+    sessions = {
+        camera["camera_id"]: requests.Session()
+        for camera in CAMERAS
+    }
 
     frame_interval = (
         1.0 / TARGET_FPS
     )
+
+    executor = ThreadPoolExecutor(max_workers=len(CAMERAS))
 
     try:
 
@@ -263,40 +293,17 @@ def main() -> None:
 
             cycle_started = time.perf_counter()
 
-            for camera in CAMERAS:
-
-                try:
-
-                    image = capture_snapshot(
-                        session,
-                        camera,
-                    )
-
-                    result = send_frame(
-                        session,
-                        backend_url,
-                        camera,
-                        image,
-                    )
-
-                    print_result(
-                        camera,
-                        result,
-                    )
-
-                except requests.RequestException as exc:
-
-                    print(
-                        f"[{camera['camera_id']}] "
-                        f"요청 실패: {exc}"
-                    )
-
-                except Exception as exc:
-
-                    print(
-                        f"[{camera['camera_id']}] "
-                        f"오류: {exc}"
-                    )
+            futures = [
+                executor.submit(
+                    process_camera,
+                    sessions[camera["camera_id"]],
+                    backend_url,
+                    camera,
+                )
+                for camera in CAMERAS
+            ]
+            for future in futures:
+                future.result()
 
             elapsed = (
                 time.perf_counter()
@@ -318,12 +325,17 @@ def main() -> None:
 
         for camera in CAMERAS:
             end_stream(
-                session,
+                sessions[camera["camera_id"]],
                 backend_url,
                 camera,
             )
 
         print("Bridge 종료 완료.")
+
+    finally:
+        executor.shutdown(wait=True)
+        for session in sessions.values():
+            session.close()
 
 
 if __name__ == "__main__":

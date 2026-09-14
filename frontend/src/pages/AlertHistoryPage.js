@@ -22,7 +22,9 @@ function EventDetail({ detail: { event, prediction } }) {
   ];
   return <section className="alert-analysis">
     <h2>위험 이벤트 #{event.id}</h2>
-    <p>현재 서버는 원본 이미지와 영상을 저장하지 않습니다.</p>
+    {event.videoUrl
+      ? <video controls preload="metadata" src={event.videoUrl}>이 브라우저는 이벤트 영상을 지원하지 않습니다.</video>
+      : <p>이 이벤트의 영상은 아직 생성되지 않았습니다.</p>}
     <dl>{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? '—'}</dd></div>)}</dl>
     {prediction.risks.map((risk, index) => <section key={index}>
       <h3>위험 쌍 {index + 1} · {riskLevelLabels[risk.level] || risk.level}</h3>
@@ -113,7 +115,7 @@ function AlertHistoryPage() {
     </div></div>
     <section className="alert-history__filters">
       <label>발생 날짜<input aria-label="발생 날짜" type="date" value={date} onChange={(e) => { setDate(e.target.value); resetSelection(); }} /></label>
-      <label>카메라<select aria-label="카메라" value={cameraId} onChange={(e) => { setCameraId(e.target.value); resetSelection(); }}><option value="">전체 카메라</option><option value={DEFAULT_CAMERA_ID}>{DEFAULT_CAMERA_ID}</option></select></label>
+      <label>카메라<select aria-label="카메라" value={cameraId} onChange={(e) => { setCameraId(e.target.value); resetSelection(); }}><option value="">전체 카메라</option><option value={DEFAULT_CAMERA_ID}>{DEFAULT_CAMERA_ID}</option><option value="camera-2">camera-2</option></select></label>
     </section>
     {exporting && <p role="status">전체 이력을 모아 엑셀을 생성하고 있습니다.</p>}
     {exportMessage && <p role="status">{exportMessage}</p>}

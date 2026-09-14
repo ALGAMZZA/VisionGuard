@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { analyzeFrame, endStream, getRiskEvent, getRiskEvents } from './visionGuardApi';
+import { analyzeFrame, endStream, getLatestAnalysis, getRiskEvent, getRiskEvents } from './visionGuardApi';
 
 jest.mock('./client', () => ({ __esModule: true, default: { post: jest.fn(), get: jest.fn() } }));
 beforeEach(() => jest.clearAllMocks());
@@ -23,6 +23,15 @@ test('optional analysis fields remain omitted', async () => {
   const body = apiClient.post.mock.calls[0][1];
   expect(body.has('fps')).toBe(false);
   expect(body.has('streamId')).toBe(false);
+});
+
+test('latest analysis requests the selected camera', async () => {
+  const data = { cameraId: 'camera-1', prediction: { overall_risk: 'SAFE' } };
+  apiClient.get.mockResolvedValue({ data });
+  expect(await getLatestAnalysis('camera-1')).toBe(data);
+  expect(apiClient.get).toHaveBeenCalledWith('/analyses/latest', {
+    params: { cameraId: 'camera-1' }, signal: undefined,
+  });
 });
 
 test('list preserves pagination and only sends supported query parameters', async () => {
