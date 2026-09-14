@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { DEFAULT_CAMERA_ID, getRiskEvent, getRiskEvents } from '../api/visionGuardApi';
 import { getApiErrorMessage } from '../api/client';
 import { eventStatusLabels, formatDateTime, getDateRange, riskLevelLabels } from '../utils/riskEvent';
 import './AlertHistoryPage.css';
+import { downloadRiskEvents } from '../utils/exportRiskEvents';
 
 function EventDetail({ detail: { event, prediction } }) {
   const fields = [
@@ -51,6 +52,30 @@ function AlertHistoryPage() {
   const [error, setError] = useState('');
   const [detailError, setDetailError] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const exportController = useRef(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
+  const [exportMessage, setExportMessage] = useState('');
+
+  useEffect(() => () => exportController.current?.abort(), []);
+
+  async function exportHistory() {
+    if (exportController.current) return;
+    const controller = new AbortController();
+    exportController.current = controller;
+    setExporting(true);
+    setExportError('');
+    setExportMessage('');
+    try {
+      const count = await downloadRiskEvents({ date, cameraId }, { signal: controller.signal });
+      if (!controller.signal.aborted) setExportMessage(`${count}건의 엑셀 다운로드를 시작했습니다.`);
+    } catch (err) {
+      if (!controller.signal.aborted) setExportError(`엑셀 다운로드 실패: ${err?.isAxiosError ? getApiErrorMessage(err) : err.message || '파일을 생성하지 못했습니다. 다시 시도해 주세요.'}`);
+    } finally {
+      exportController.current = null;
+      if (!controller.signal.aborted) setExporting(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -82,11 +107,17 @@ function AlertHistoryPage() {
   function resetSelection() { setSearchParams({}); setPage(0); }
 
   return <div className="alert-history">
-    <div className="alert-history__heading"><div><h1>위험 이력</h1><p>위험 이벤트 기록 및 분석 결과</p></div><button type="button" onClick={() => setRefresh((value) => value + 1)}>새로고침</button></div>
+    <div className="alert-history__heading"><div><h1>위험 이력</h1><p>위험 이벤트 기록 및 분석 결과</p></div><div className="alert-history__actions">
+      <button type="button" disabled={exporting || loading || !result?.totalElements} onClick={exportHistory}>{exporting ? '엑셀 생성 중…' : '엑셀 다운로드'}</button>
+      <button type="button" onClick={() => setRefresh((value) => value + 1)}>새로고침</button>
+    </div></div>
     <section className="alert-history__filters">
       <label>발생 날짜<input aria-label="발생 날짜" type="date" value={date} onChange={(e) => { setDate(e.target.value); resetSelection(); }} /></label>
       <label>카메라<select aria-label="카메라" value={cameraId} onChange={(e) => { setCameraId(e.target.value); resetSelection(); }}><option value="">전체 카메라</option><option value={DEFAULT_CAMERA_ID}>{DEFAULT_CAMERA_ID}</option></select></label>
     </section>
+    {exporting && <p role="status">전체 이력을 모아 엑셀을 생성하고 있습니다.</p>}
+    {exportMessage && <p role="status">{exportMessage}</p>}
+    {exportError && <p role="alert">{exportError}</p>}
     {error && <p role="alert">{error}</p>}
     <div className="alert-history__workspace">
       <aside className="alert-list">

@@ -2,6 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import AlertHistoryPage from './AlertHistoryPage';
 import { getRiskEvent, getRiskEvents } from '../api/visionGuardApi';
+import { downloadRiskEvents } from '../utils/exportRiskEvents';
+
+jest.mock('../utils/exportRiskEvents', () => ({ downloadRiskEvents: jest.fn() }));
 
 jest.mock('../api/visionGuardApi', () => ({ DEFAULT_CAMERA_ID: 'camera-1', getRiskEvent: jest.fn(), getRiskEvents: jest.fn() }));
 beforeEach(() => jest.clearAllMocks());
@@ -23,6 +26,22 @@ test('empty list does not request an undefined event', async () => {
   render(<MemoryRouter><AlertHistoryPage /></MemoryRouter>);
   expect(await screen.findByText('조회된 위험 이벤트가 없습니다.')).toBeInTheDocument();
   expect(getRiskEvent).not.toHaveBeenCalled();
+  expect(screen.getByRole('button', { name: '엑셀 다운로드' })).toBeDisabled();
+});
+
+test('exports selected filters and allows retry after a failure', async () => {
+  getRiskEvents.mockResolvedValue({ content: [], page: 0, totalPages: 1, totalElements: 1 });
+  downloadRiskEvents.mockRejectedValueOnce(new Error('다운로드 오류')).mockResolvedValueOnce(1);
+  render(<MemoryRouter><AlertHistoryPage /></MemoryRouter>);
+  fireEvent.change(screen.getByLabelText('발생 날짜'), { target: { value: '2026-09-13' } });
+  fireEvent.change(screen.getByLabelText('카메라'), { target: { value: 'camera-1' } });
+  const button = screen.getByRole('button', { name: '엑셀 다운로드' });
+  await waitFor(() => expect(button).toBeEnabled());
+  fireEvent.click(button);
+  expect(await screen.findByRole('alert')).toHaveTextContent('엑셀 다운로드 실패');
+  expect(downloadRiskEvents).toHaveBeenCalledWith({ date: '2026-09-13', cameraId: 'camera-1' }, { signal: expect.any(AbortSignal) });
+  fireEvent.click(screen.getByRole('button', { name: '엑셀 다운로드' }));
+  expect(await screen.findByText('1건의 엑셀 다운로드를 시작했습니다.')).toBeInTheDocument();
 });
 
 test('deep links request detail even outside the current page and show Problem Detail', async () => {
