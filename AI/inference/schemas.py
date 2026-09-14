@@ -62,6 +62,7 @@ class Detection(SchemaModel):
     confidence: float = Field(ge=0, le=1)
     bbox: BoundingBox
     track_id: int | None = Field(default=None, ge=0)
+    is_predicted: bool = False
 
 
 class RiskResult(SchemaModel):

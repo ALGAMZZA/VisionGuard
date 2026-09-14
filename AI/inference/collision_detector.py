@@ -19,6 +19,7 @@ class CollisionConfig:
     danger_score: float = 65.0
     velocity_smoothing: float = 0.2
     stale_after_frames: int = 30
+    danger_hold_s: float = 1.0
 
     def __post_init__(self) -> None:
         if self.future_horizon_s <= 0 or self.proximity_threshold_px <= 0:
@@ -31,6 +32,8 @@ class CollisionConfig:
             raise ValueError("risk score thresholds must be ordered within 0..100")
         if self.stale_after_frames < 1:
             raise ValueError("stale_after_frames must be positive")
+        if self.danger_hold_s < 0:
+            raise ValueError("danger_hold_s must not be negative")
 
 
 @dataclass(slots=True)
@@ -38,6 +41,7 @@ class TrackState:
     """Last known position and smoothed velocity for one DeepSORT track."""
 
     position: np.ndarray
+    bbox: np.ndarray
     velocity_px_s: np.ndarray
     last_frame_index: int
 
@@ -45,6 +49,15 @@ class TrackState:
     def from_detection(cls, detection: Detection, frame_index: int) -> TrackState:
         return cls(
             position=np.asarray(detection.bbox.bottom_center, dtype=np.float64),
+            bbox=np.asarray(
+                [
+                    detection.bbox.x1,
+                    detection.bbox.y1,
+                    detection.bbox.x2,
+                    detection.bbox.y2,
+                ],
+                dtype=np.float64,
+            ),
             velocity_px_s=np.zeros(2, dtype=np.float64),
             last_frame_index=frame_index,
         )
@@ -64,6 +77,15 @@ class TrackState:
             1.0 - smoothing
         ) * self.velocity_px_s + smoothing * measured_velocity
         self.position = new_position
+        self.bbox = np.asarray(
+            [
+                detection.bbox.x1,
+                detection.bbox.y1,
+                detection.bbox.x2,
+                detection.bbox.y2,
+            ],
+            dtype=np.float64,
+        )
         self.last_frame_index = frame_index
 
 
@@ -73,9 +95,11 @@ class CollisionDetector:
     def __init__(self, config: CollisionConfig | None = None) -> None:
         self.config = config or CollisionConfig()
         self._tracks: dict[int, TrackState] = {}
+        self._danger_until: dict[tuple[int, int], int] = {}
 
     def reset(self) -> None:
         self._tracks.clear()
+        self._danger_until.clear()
 
     def assess(
         self,
@@ -94,10 +118,12 @@ class CollisionDetector:
                 continue
             state = self._tracks.get(detection.track_id)
             if state is None:
+                if detection.is_predicted:
+                    continue
                 self._tracks[detection.track_id] = TrackState.from_detection(
                     detection, frame_index
                 )
-            else:
+            elif not detection.is_predicted:
                 state.update(
                     detection,
                     frame_index,
@@ -126,11 +152,30 @@ class CollisionDetector:
             and detection.track_id is not None
         ]
 
-        return [
+        results = [
             self._score_pair(person_index, person, forklift_index, forklift)
             for person_index, person in people
             for forklift_index, forklift in forklifts
         ]
+        hold_frames = round(self.config.danger_hold_s * fps)
+        active_pairs = set()
+        for result in results:
+            assert result.person_track_id is not None
+            assert result.forklift_track_id is not None
+            pair = (result.person_track_id, result.forklift_track_id)
+            active_pairs.add(pair)
+            if result.level == RiskLevel.DANGER:
+                self._danger_until[pair] = frame_index + hold_frames
+            elif frame_index <= self._danger_until.get(pair, -1):
+                result.level = RiskLevel.DANGER
+                result.score = max(result.score, self.config.danger_score)
+                result.reason = f"recent danger retained; {result.reason}"
+        self._danger_until = {
+            pair: until
+            for pair, until in self._danger_until.items()
+            if until >= frame_index and pair in active_pairs
+        }
+        return results
 
     def _score_pair(
         self,
@@ -161,8 +206,29 @@ class CollisionDetector:
 
         closest_position = relative_position + relative_velocity * closest_time
         future_distance = float(np.linalg.norm(closest_position))
-        proximity_score = 1.0 - min(
-            future_distance / self.config.proximity_threshold_px,
+        person_future_bbox = _translate_bbox(
+            person_state.bbox, person_state.velocity_px_s * closest_time
+        )
+        forklift_future_bbox = _translate_bbox(
+            forklift_state.bbox, forklift_state.velocity_px_s * closest_time
+        )
+        current_box_gap = _box_gap(person_state.bbox, forklift_state.bbox)
+        future_box_gap = _box_gap(person_future_bbox, forklift_future_bbox)
+        closest_box_gap = min(current_box_gap, future_box_gap)
+        # Perspective can make two 2-D boxes overlap even when their ground
+        # contact points are safely separated. Use overlap only as supporting
+        # evidence and scale the primary distance by the apparent object size.
+        largest_height = max(
+            person_state.bbox[3] - person_state.bbox[1],
+            forklift_state.bbox[3] - forklift_state.bbox[1],
+        )
+        adaptive_distance = max(
+            self.config.proximity_threshold_px,
+            largest_height * 0.75,
+        )
+        center_proximity = 1.0 - min(future_distance / adaptive_distance, 1.0)
+        box_proximity = 1.0 - min(
+            closest_box_gap / self.config.proximity_threshold_px,
             1.0,
         )
         urgency_score = (
@@ -172,7 +238,8 @@ class CollisionDetector:
         )
         score = float(
             np.clip(
-                75.0 * proximity_score
+                55.0 * center_proximity
+                + 20.0 * box_proximity
                 + 15.0 * urgency_score
                 + (10.0 if approaching else 0.0),
                 0.0,
@@ -207,3 +274,16 @@ class CollisionDetector:
             score=score,
             reason=reason,
         )
+
+
+def _translate_bbox(bbox: np.ndarray, displacement: np.ndarray) -> np.ndarray:
+    dx, dy = displacement
+    return bbox + np.asarray([dx, dy, dx, dy], dtype=np.float64)
+
+
+def _box_gap(first: np.ndarray, second: np.ndarray) -> float:
+    """Return the shortest Euclidean distance between two axis-aligned boxes."""
+
+    horizontal = max(first[0] - second[2], second[0] - first[2], 0.0)
+    vertical = max(first[1] - second[3], second[1] - first[3], 0.0)
+    return float(np.hypot(horizontal, vertical))

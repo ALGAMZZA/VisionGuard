@@ -121,11 +121,15 @@ def test_detector_filters_classes_and_normalizes_tracks() -> None:
 def test_invalid_detector_config_is_rejected() -> None:
     with pytest.raises(ValueError, match="confidence"):
         DetectorConfig(confidence=1.1)
+    with pytest.raises(ValueError, match="person_confidence"):
+        DetectorConfig(person_confidence=1.1)
+    with pytest.raises(ValueError, match="forklift_confidence"):
+        DetectorConfig(forklift_confidence=1.1)
     with pytest.raises(ValueError, match="max_box_area_ratio"):
         DetectorConfig(max_box_area_ratio=0.0)
 
 
-def test_detector_does_not_emit_stale_tracks() -> None:
+def test_detector_bridges_short_tracking_gap() -> None:
     class StaleTracker(FakeTracker):
         def update_tracks(
             self,
@@ -142,6 +146,32 @@ def test_detector_does_not_emit_stale_tracks() -> None:
         DetectorConfig(model_path="unused"),
         model=FakeModel(),
         tracker=StaleTracker(),
+    )
+
+    detections = detector.detect(np.zeros((100, 200, 3), dtype=np.uint8))
+
+    assert len(detections) == 2
+    assert all(detection.is_predicted for detection in detections)
+    assert detections[0].confidence == pytest.approx(0.9 * 0.85)
+
+
+def test_detector_does_not_emit_track_beyond_prediction_window() -> None:
+    class OldTracker(FakeTracker):
+        def update_tracks(
+            self,
+            detections: list[tuple[list[float], float, int]],
+            *,
+            frame: np.ndarray,
+        ) -> list[FakeTrack]:
+            tracks = super().update_tracks(detections, frame=frame)
+            for track in tracks:
+                track.time_since_update = 3
+            return tracks
+
+    detector = Detector(
+        DetectorConfig(model_path="unused", max_prediction_frames=2),
+        model=FakeModel(),
+        tracker=OldTracker(),
     )
 
     assert detector.detect(np.zeros((100, 200, 3), dtype=np.uint8)) == []
@@ -161,3 +191,33 @@ def test_detector_rejects_box_covering_most_of_frame() -> None:
 
     assert detector.detect(np.zeros((100, 200, 3), dtype=np.uint8)) == []
 
+
+def test_detector_applies_class_specific_confidence() -> None:
+    class LowConfidenceForkliftModel(FakeModel):
+        def predict(self, **_: object) -> list[object]:
+            boxes = [
+                FakeBox(0, 0.49, [10, 10, 30, 50]),
+                FakeBox(1, 0.59, [50, 10, 90, 60]),
+                FakeBox(0, 0.51, [100, 10, 120, 50]),
+                FakeBox(1, 0.61, [130, 10, 170, 60]),
+            ]
+            return [type("Result", (), {"boxes": boxes})()]
+
+    detector = Detector(
+        DetectorConfig(
+            model_path="unused",
+            confidence=0.35,
+            person_confidence=0.50,
+            forklift_confidence=0.60,
+        ),
+        model=LowConfidenceForkliftModel(),
+        tracker=FakeTracker(),
+    )
+
+    detections = detector.detect(np.zeros((100, 200, 3), dtype=np.uint8))
+
+    assert len(detections) == 2
+    assert detections[0].class_name == ObjectClass.PERSON
+    assert detections[0].confidence == pytest.approx(0.51)
+    assert detections[1].class_name == ObjectClass.FORKLIFT
+    assert detections[1].confidence == pytest.approx(0.61)

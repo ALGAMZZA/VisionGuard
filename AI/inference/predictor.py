@@ -134,6 +134,8 @@ def run_video(
     *,
     model_path: str,
     confidence: float,
+    person_confidence: float,
+    forklift_confidence: float,
     image_size: int,
     device: str | None,
     save_path: str | None,
@@ -145,6 +147,8 @@ def run_video(
         DetectorConfig(
             model_path=model_path,
             confidence=confidence,
+            person_confidence=person_confidence,
+            forklift_confidence=forklift_confidence,
             image_size=image_size,
             device=device,
         )
@@ -196,6 +200,8 @@ def main() -> None:
     parser.add_argument("--source", required=True, help="video path or camera number")
     parser.add_argument("--model", default="AI/models/production/best.pt")
     parser.add_argument("--conf", type=float, default=0.35)
+    parser.add_argument("--person-conf", type=float, default=0.50)
+    parser.add_argument("--forklift-conf", type=float, default=0.60)
     parser.add_argument("--imgsz", type=int, default=640)
     parser.add_argument("--device", default=None)
     parser.add_argument("--save", default=None)
@@ -205,6 +211,8 @@ def main() -> None:
         args.source,
         model_path=args.model,
         confidence=args.conf,
+        person_confidence=args.person_conf,
+        forklift_confidence=args.forklift_conf,
         image_size=args.imgsz,
         device=args.device,
         save_path=args.save,

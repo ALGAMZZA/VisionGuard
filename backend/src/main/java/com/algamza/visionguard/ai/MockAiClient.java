@@ -19,9 +19,9 @@ public class MockAiClient implements AiClient {
             int w = decoded.getWidth(), h = decoded.getHeight();
             return new PredictionResult(frameId, w, h,
                     List.of(new Detection(0, "person", 0.95,
-                                    new BoundingBox(0, 0, w * 0.4, h), 1),
+                                    new BoundingBox(0, 0, w * 0.4, h), 1, false),
                             new Detection(1, "forklift", 0.95,
-                                    new BoundingBox(w * 0.5, 0, w, h), 2)),
+                                    new BoundingBox(w * 0.5, 0, w, h), 2, false)),
                     List.of(new Risk(RiskLevel.WARNING, 0, 1, 1, 2,
                             w * 0.1, w * 0.05, 1.0, 60, "MOCK: 개발용 고정 위험 응답")),
                     RiskLevel.WARNING, 0);

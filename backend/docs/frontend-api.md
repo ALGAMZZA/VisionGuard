@@ -274,3 +274,14 @@ const { data } = await api.get('/api/risk-events', {
   params: { cameraId: 'camera-1', page: 0, size: 20 },
 });
 ```
+
+## 현재 프론트 코드 적용 사항
+
+현재 `frontend/src/api/client.js`는 기본 baseURL을 `/api`로 두고, 각 함수는
+`/analyses`, `/risk-events`, `/streams/end`처럼 `/api`를 제외한 경로를 사용합니다.
+따라서 `REACT_APP_API_BASE_URL`에는 `http://서버주소:8080/api`처럼 **/api까지 포함**해야 합니다.
+위의 일반 Axios 예제는 서버 루트를 baseURL로 쓰는 방식이므로 현재 클라이언트 설정과 혼합하지 마세요.
+개발 기본값은 CRA의 proxy를 통해 localhost:8080으로 전달되므로 별도 환경 변수 없이 사용할 수 있습니다.
+
+위험 이력 화면과 헤더 최근 알림은 실제 API를 사용합니다. 대시보드·도면·히트맵은 아직 데모 데이터이며,
+analyzeFrame/endStream 함수는 준비됐지만 영상 프레임 추출·전송·종료 UI에서는 아직 호출되지 않습니다.

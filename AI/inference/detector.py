@@ -22,12 +22,19 @@ class DetectorConfig:
 
     model_path: str = "AI/models/production/best.pt"
     confidence: float = 0.35
+    person_confidence: float = 0.50
+    forklift_confidence: float = 0.60
     image_size: int = 640
     device: str | int | None = None
     max_box_area_ratio: float = 0.5
     # Retain unmatched identities internally for one second at 30 FPS so an
     # occluded forklift can be re-associated. Stale tracks are never emitted.
     max_track_age: int = 30
+    # Bridge very short YOLO misses in the rendered stream. These detections
+    # are marked as predicted so downstream motion estimation does not treat
+    # Kalman output as a fresh observation.
+    max_prediction_frames: int = 2
+    prediction_confidence_decay: float = 0.85
     track_initialization_frames: int = 2
     max_cosine_distance: float = 0.4
     embedding_budget: int = 30
@@ -36,12 +43,20 @@ class DetectorConfig:
     def __post_init__(self) -> None:
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between zero and one")
+        if not 0.0 <= self.person_confidence <= 1.0:
+            raise ValueError("person_confidence must be between zero and one")
+        if not 0.0 <= self.forklift_confidence <= 1.0:
+            raise ValueError("forklift_confidence must be between zero and one")
         if self.image_size <= 0:
             raise ValueError("image_size must be greater than zero")
         if not 0.0 < self.max_box_area_ratio <= 1.0:
             raise ValueError("max_box_area_ratio must be within (0, 1]")
         if self.max_track_age < 1 or self.track_initialization_frames < 1:
             raise ValueError("DeepSORT frame counts must be positive")
+        if not 0 <= self.max_prediction_frames <= self.max_track_age:
+            raise ValueError("max_prediction_frames must be within track age")
+        if not 0.0 < self.prediction_confidence_decay <= 1.0:
+            raise ValueError("prediction_confidence_decay must be within (0, 1]")
 
 
 class Detector:
@@ -152,6 +167,16 @@ class Detector:
                     continue
 
                 confidence = float(box.conf[0])
+                if (
+                    self.class_map[class_id] == ObjectClass.PERSON
+                    and confidence < self.config.person_confidence
+                ):
+                    continue
+                if (
+                    self.class_map[class_id] == ObjectClass.FORKLIFT
+                    and confidence < self.config.forklift_confidence
+                ):
+                    continue
                 x1, y1, x2, y2 = (
                     box.xyxy[0].detach().cpu().numpy().astype(float).tolist()
                 )
@@ -173,10 +198,10 @@ class Detector:
         detections: list[Detection] = []
 
         for track in tracks:
-            # DeepSORT keeps predicting unmatched tracks until ``max_age``.
-            # Those predictions are useful internally for re-association, but
-            # emitting them creates stale/duplicate boxes and false risks.
-            if not track.is_confirmed() or track.time_since_update > 0:
+            if (
+                not track.is_confirmed()
+                or track.time_since_update > self.config.max_prediction_frames
+            ):
                 continue
 
             try:
@@ -186,9 +211,7 @@ class Detector:
 
             raw_class_id = track.get_det_class()
             raw_confidence = track.get_det_conf()
-            if raw_class_id is not None:
-                if raw_confidence is None:
-                    continue
+            if raw_class_id is not None and raw_confidence is not None:
                 class_id = int(raw_class_id)
                 confidence = float(raw_confidence)
                 self._track_metadata[track_id] = (class_id, confidence)
@@ -201,9 +224,13 @@ class Detector:
                 continue
 
             height, width = frame.shape[:2]
-            # Use the box observed by YOLO in this frame, not the Kalman-filter
-            # prediction. ``orig_strict`` prevents a stale fallback.
-            observed_box = track.to_ltrb(orig=True, orig_strict=True)
+            predicted = track.time_since_update > 0
+            # Prefer this frame's YOLO box. During a short miss, use DeepSORT's
+            # Kalman prediction to keep the display continuous.
+            observed_box = track.to_ltrb(
+                orig=not predicted,
+                orig_strict=not predicted,
+            )
             if observed_box is None:
                 continue
             x1, y1, x2, y2 = (float(value) for value in observed_box)
@@ -221,7 +248,14 @@ class Detector:
                     confidence=min(max(confidence, 0.0), 1.0),
                     bbox=BoundingBox(x1=x1, y1=y1, x2=x2, y2=y2),
                     track_id=track_id,
+                    is_predicted=predicted,
                 )
             )
+
+            if predicted:
+                detections[-1].confidence *= (
+                    self.config.prediction_confidence_decay
+                    ** track.time_since_update
+                )
 
         return detections

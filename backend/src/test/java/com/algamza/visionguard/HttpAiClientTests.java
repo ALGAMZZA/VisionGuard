@@ -21,7 +21,8 @@ class HttpAiClientTests {
             var response = """
                     {"frame_id":"frame-1","image_width":100,"image_height":80,
                      "detections":[{"class_id":0,"class_name":"person","confidence":0.9,
-                       "bbox":{"x1":0,"y1":0,"x2":10,"y2":20},"track_id":null}],
+                       "bbox":{"x1":0,"y1":0,"x2":10,"y2":20},"track_id":null,
+                       "is_predicted":false}],
                      "risks":[],"overall_risk":"SAFE","processing_time_ms":12.5}
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -37,6 +38,24 @@ class HttpAiClientTests {
             assertThat(result.detections().get(0).track_id()).isNull();
             assertThat(query.get()).contains("frame_id=frame-1", "fps=15.0");
             assertThat(requestBody.get()).contains("name=\"file\"", "filename=\"frame.jpg\"");
+        } finally { server.stop(0); }
+    }
+
+    @Test void resetsPythonTrackerAndReportsResetFailure() throws Exception {
+        var method = new AtomicReference<String>();
+        var server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/reset", exchange -> {
+            method.set(exchange.getRequestMethod());
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+        server.start();
+        try {
+            var client = new HttpAiClient("http://127.0.0.1:" + server.getAddress().getPort(), 1000);
+            client.reset();
+            assertThat(method.get()).isEqualTo("POST");
+            server.removeContext("/reset");
+            assertThatThrownBy(client::reset).isInstanceOf(AiUnavailableException.class);
         } finally { server.stop(0); }
     }
 

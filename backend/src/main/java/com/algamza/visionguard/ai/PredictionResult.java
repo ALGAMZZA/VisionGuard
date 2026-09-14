@@ -10,7 +10,8 @@ public record PredictionResult(
     public enum RiskLevel { SAFE, WARNING, DANGER }
     public record BoundingBox(double x1, double y1, double x2, double y2) {}
     public record Detection(int class_id, String class_name, double confidence,
-                            BoundingBox bbox, Integer track_id) {}
+                            BoundingBox bbox, Integer track_id,
+                            boolean is_predicted) {}
     public record Risk(RiskLevel level, int person_index, int forklift_index,
                        Integer person_track_id, Integer forklift_track_id,
                        double distance_px, double future_distance_px,

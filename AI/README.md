@@ -168,6 +168,21 @@ python -m AI.training.preprocess_unity \
 출력에는 `dataset.yaml`과 프레임·클래스 분포를 기록한 `manifest.json`이 함께
 생성됩니다. 시연용 영상과 최종 테스트 영상은 이 데이터셋에 포함하지 않습니다.
 
+## NVIDIA와 Unity 데이터셋 병합
+
+각 데이터셋의 기존 train/val 구분을 유지하면서 하나의 학습 데이터셋으로
+병합합니다. 입력별 접두사를 파일명에 붙이므로 동일한 stem도 충돌하지 않습니다.
+
+```bash
+python -m AI.training.merge_datasets \
+  --dataset nvidia=/mnt/d/VisionGuardData/yolo-nearmiss-00001-00003-v1/dataset.yaml \
+  --dataset unity=/mnt/d/VisionGuardData/unity/yolo-train-take-04-v1/dataset.yaml \
+  --output /mnt/d/VisionGuardData/yolo-nearmiss-unity-v1
+```
+
+입력 데이터셋을 먼저 검증한 뒤 이미지와 라벨을 복사하며, 결과 폴더에 출처별
+통계를 담은 `manifest.json`과 학습용 `dataset.yaml`을 생성합니다.
+
 학습과 평가는 아래 진입점을 사용합니다.
 
 ```bash

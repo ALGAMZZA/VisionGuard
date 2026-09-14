@@ -48,6 +48,23 @@ class AnalysisServiceTests {
                 .when(ai).predict(any(), anyString(), anyDouble());
     }
 
+    @Test void resetsOnlyBeforeNewStreamInferenceAndNeverForReplayOrEnd() {
+        respond(prediction());
+        var instance = new AnalysisService(ai, events, frames, completions, mapper, transactionManager, "camera-1", "mock", 2000);
+        instance.analyze(new byte[]{1}, "camera-1", "reset-a", "1", start, 2);
+        instance.analyze(new byte[]{1}, "camera-1", "reset-a", "2", start.plusMillis(500), 2);
+        instance.analyze(new byte[]{1}, "camera-1", "reset-b", "1", start.plusSeconds(1), 2);
+        instance.analyze(new byte[]{1}, "camera-1", "reset-a", "1", start, 2);
+        instance.endStream("camera-1", "reset-a", start.plusMillis(500));
+        var order = inOrder(ai);
+        order.verify(ai).reset();
+        order.verify(ai).predict(any(), eq("1"), eq(2.0));
+        order.verify(ai).predict(any(), eq("2"), eq(2.0));
+        order.verify(ai).reset();
+        order.verify(ai).predict(any(), eq("1"), eq(2.0));
+        order.verifyNoMoreInteractions();
+    }
+
     @Test void mergesPairPreservesPeakAndEndsWhenSafe() {
         respond(prediction(risk(WARNING, 1, 2)), prediction(risk(DANGER, 1, 2)),
                 prediction(risk(WARNING, 1, 2)), prediction());
