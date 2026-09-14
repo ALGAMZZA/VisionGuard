@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { DEFAULT_CAMERA_ID, getRiskEvent, getRiskEvents } from '../api/visionGuardApi';
+import { CAMERA_IDS, getRiskEvent, getRiskEvents } from '../api/visionGuardApi';
 import { getApiErrorMessage } from '../api/client';
 import { eventStatusLabels, formatDateTime, getDateRange, riskLevelLabels } from '../utils/riskEvent';
 import './AlertHistoryPage.css';
@@ -113,7 +113,7 @@ function AlertHistoryPage() {
     </div></div>
     <section className="alert-history__filters">
       <label>발생 날짜<input aria-label="발생 날짜" type="date" value={date} onChange={(e) => { setDate(e.target.value); resetSelection(); }} /></label>
-      <label>카메라<select aria-label="카메라" value={cameraId} onChange={(e) => { setCameraId(e.target.value); resetSelection(); }}><option value="">전체 카메라</option><option value={DEFAULT_CAMERA_ID}>{DEFAULT_CAMERA_ID}</option></select></label>
+      <label>카메라<select aria-label="카메라" value={cameraId} onChange={(e) => { setCameraId(e.target.value); resetSelection(); }}><option value="">전체 카메라</option>{CAMERA_IDS.map((id) => <option key={id} value={id}>{id}</option>)}</select></label>
     </section>
     {exporting && <p role="status">전체 이력을 모아 엑셀을 생성하고 있습니다.</p>}
     {exportMessage && <p role="status">{exportMessage}</p>}

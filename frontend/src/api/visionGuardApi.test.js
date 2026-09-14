@@ -1,8 +1,15 @@
 import apiClient from './client';
-import { analyzeFrame, endStream, getRiskEvent, getRiskEvents } from './visionGuardApi';
+import { analyzeFrame, endStream, getRiskEvent, getRiskEvents, getLatestAnalysis } from './visionGuardApi';
 
 jest.mock('./client', () => ({ __esModule: true, default: { post: jest.fn(), get: jest.fn() } }));
 beforeEach(() => jest.clearAllMocks());
+
+test('latest analysis sends the camera ID and cancellation signal', async () => {
+  const signal = new AbortController().signal;
+  apiClient.get.mockResolvedValue({ data: { cameraId: 'camera-2' } });
+  expect(await getLatestAnalysis('camera-2', { signal })).toEqual({ cameraId: 'camera-2' });
+  expect(apiClient.get).toHaveBeenCalledWith('/analyses/latest', { params: { cameraId: 'camera-2' }, signal });
+});
 
 test('analysis sends one image and exact metadata without forcing Content-Type', async () => {
   const response = { eventIds: [1, 2], prediction: { overall_risk: 'WARNING' } };

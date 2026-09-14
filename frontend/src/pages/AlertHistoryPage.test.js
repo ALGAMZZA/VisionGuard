@@ -6,7 +6,7 @@ import { downloadRiskEvents } from '../utils/exportRiskEvents';
 
 jest.mock('../utils/exportRiskEvents', () => ({ downloadRiskEvents: jest.fn() }));
 
-jest.mock('../api/visionGuardApi', () => ({ DEFAULT_CAMERA_ID: 'camera-1', getRiskEvent: jest.fn(), getRiskEvents: jest.fn() }));
+jest.mock('../api/visionGuardApi', () => ({ CAMERA_IDS: ['camera-1', 'camera-2'], getRiskEvent: jest.fn(), getRiskEvents: jest.fn() }));
 beforeEach(() => jest.clearAllMocks());
 
 test('renders server detail with nullable tracking IDs, pixel units, and pagination', async () => {

@@ -450,6 +450,7 @@
   color: #ffaf4c;
   font-size: 12px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .camera-detail__alerts {
