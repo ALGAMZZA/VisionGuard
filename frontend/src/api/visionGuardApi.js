@@ -3,11 +3,6 @@ import apiClient from './client';
 export const DEFAULT_CAMERA_ID = process.env.REACT_APP_CAMERA_ID || 'camera-1';
 export const CAMERA_IDS = [...new Set((process.env.REACT_APP_CAMERA_IDS || `${DEFAULT_CAMERA_ID},camera-2`).split(',').map((id) => id.trim()).filter(Boolean))];
 
-export async function getLatestAnalysis(cameraId, { signal } = {}) {
-  const { data } = await apiClient.get('/analyses/latest', { params: { cameraId }, signal });
-  return data;
-}
-
 /** 이미지 한 장을 분석합니다. 같은 스트림은 이전 요청을 await한 뒤 호출하세요.
  * 재시도 시 file과 모든 메타데이터를 그대로 재사용해야 합니다.
  * @param {{file: File|Blob, cameraId: string, frameId: string, capturedAt: string, streamId?: string, fps?: number}} frame
@@ -23,6 +18,14 @@ export async function analyzeFrame({ file, cameraId, frameId, capturedAt, stream
   if (fps !== undefined) formData.append('fps', String(fps));
   // Content-Type boundary는 브라우저가 설정합니다.
   const { data } = await apiClient.post('/analyses', formData, { signal });
+  return data;
+}
+
+/** Bridge가 백엔드로 전송한 카메라의 가장 최근 분석 결과를 조회합니다. */
+export async function getLatestAnalysis(cameraId, { signal } = {}) {
+  const { data } = await apiClient.get('/analyses/latest', {
+    params: { cameraId }, signal,
+  });
   return data;
 }
 

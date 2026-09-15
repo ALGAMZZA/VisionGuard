@@ -20,28 +20,56 @@ function VisionGuardLogo() {
 function Header({ isSidebarExpanded }) {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [riskEvents, setRiskEvents] = useState([]);
+  const [lastReadId, setLastReadId] = useState(() => Number(window.localStorage.getItem('visionguard.lastReadEventId') || 0));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => {
-    if (!isNotificationOpen) return undefined;
-    const controller = new AbortController();
-    setLoading(true);
-    setError('');
-    setRiskEvents([]);
-    getRiskEvents({ size: 4 }, { signal: controller.signal })
-      .then((data) => { if (!controller.signal.aborted) setRiskEvents(data.content); })
-      .catch((err) => { if (!controller.signal.aborted) setError(getApiErrorMessage(err)); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [isNotificationOpen]);
+    let active = true;
+    async function refreshNotifications() {
+      if (!riskEvents.length) setLoading(true);
+      try {
+        const data = await getRiskEvents({ size: 20 });
+        if (active) {
+          const content = data.content || [];
+          setRiskEvents(content);
+          setError('');
+          if (window.localStorage.getItem('visionguard.lastReadEventId') === null && content.length) {
+            const newestId = Math.max(...content.map((event) => Number(event.id) || 0));
+            window.localStorage.setItem('visionguard.lastReadEventId', String(newestId));
+            setLastReadId(newestId);
+          }
+        }
+      } catch (err) {
+        if (active) setError(getApiErrorMessage(err));
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+    refreshNotifications();
+    const timer = window.setInterval(refreshNotifications, 5000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const unreadCount = riskEvents.filter((event) => Number(event.id) > lastReadId).length;
+
+  function toggleNotifications() {
+    const opening = !isNotificationOpen;
+    setIsNotificationOpen(opening);
+    if (opening && riskEvents.length) {
+      const newestId = Math.max(...riskEvents.map((event) => Number(event.id) || 0));
+      window.localStorage.setItem('visionguard.lastReadEventId', String(newestId));
+      setLastReadId(newestId);
+    }
+  }
 
   return (
     <header className={`header${isSidebarExpanded ? ' header--sidebar-expanded' : ''}`}>
       <VisionGuardLogo />
 
       <div className="header__notification-area">
-        <button className="header__notification" type="button" aria-label="알림 확인" aria-expanded={isNotificationOpen} onClick={() => setIsNotificationOpen((current) => !current)}>
+        <button className="header__notification" type="button" aria-label={`알림 확인${unreadCount ? `, 읽지 않은 알림 ${unreadCount}개` : ''}`} aria-expanded={isNotificationOpen} onClick={toggleNotifications}>
           <FiBell aria-hidden="true" />
+          {unreadCount > 0 && <span className="header__notification-count">{unreadCount > 99 ? '99+' : unreadCount}</span>}
         </button>
 
         {isNotificationOpen && (
@@ -52,7 +80,7 @@ function Header({ isSidebarExpanded }) {
               {error && <p role="alert">{error}</p>}
               {!loading && !error && !riskEvents.length && <p>위험 이벤트가 없습니다.</p>}
               {riskEvents.map((event) => (
-                <Link className={`notification-item notification-item--${event.level}`} to={`/alerts?eventId=${event.id}`} key={event.id} onClick={() => setIsNotificationOpen(false)}>
+                <Link className={`notification-item notification-item--${event.level}${Number(event.id) > lastReadId ? ' is-unread' : ''}`} to={`/alerts?eventId=${event.id}`} key={event.id} onClick={() => setIsNotificationOpen(false)}>
                   <span className="notification-item__icon"><FiAlertTriangle /></span>
                   <div><strong>{riskLevelLabels[event.level] || event.level}</strong><p>{event.cameraId}</p><time>{formatDateTime(event.capturedAt)}</time></div>
                   <FiChevronRight className="notification-item__arrow" />

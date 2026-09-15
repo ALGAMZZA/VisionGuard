@@ -159,3 +159,6 @@ docker-compose.override.yml
 
 # Local demo database
 backend/data/
+
+# Runtime event clips
+backend/storage/events/

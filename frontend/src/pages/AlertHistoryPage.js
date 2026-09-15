@@ -22,7 +22,9 @@ function EventDetail({ detail: { event, prediction } }) {
   ];
   return <section className="alert-analysis">
     <h2>위험 이벤트 #{event.id}</h2>
-    <p>현재 서버는 원본 이미지와 영상을 저장하지 않습니다.</p>
+    {event.videoUrl
+      ? <video controls preload="metadata" src={event.videoUrl}>이 브라우저는 이벤트 영상을 지원하지 않습니다.</video>
+      : <p>이 이벤트의 영상은 아직 생성되지 않았습니다.</p>}
     <dl>{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value ?? '—'}</dd></div>)}</dl>
     {prediction.risks.map((risk, index) => <section key={index}>
       <h3>위험 쌍 {index + 1} · {riskLevelLabels[risk.level] || risk.level}</h3>

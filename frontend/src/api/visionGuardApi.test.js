@@ -32,6 +32,15 @@ test('optional analysis fields remain omitted', async () => {
   expect(body.has('streamId')).toBe(false);
 });
 
+test('latest analysis requests the selected camera', async () => {
+  const data = { cameraId: 'camera-1', prediction: { overall_risk: 'SAFE' } };
+  apiClient.get.mockResolvedValue({ data });
+  expect(await getLatestAnalysis('camera-1')).toBe(data);
+  expect(apiClient.get).toHaveBeenCalledWith('/analyses/latest', {
+    params: { cameraId: 'camera-1' }, signal: undefined,
+  });
+});
+
 test('list preserves pagination and only sends supported query parameters', async () => {
   const data = { content: [], page: 0, totalPages: 0, totalElements: 0, size: 20 };
   apiClient.get.mockResolvedValue({ data });

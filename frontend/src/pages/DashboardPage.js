@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FiClock, FiMapPin, FiMaximize2, FiTruck, FiUser, FiVideo } from 'react-icons/fi';
 import useLatestAnalyses from '../hooks/useLatestAnalyses';
@@ -17,6 +18,7 @@ function bindCamera(layout, state) {
   const priority = { SAFE: 0, WARNING: 1, DANGER: 2 };
   const risk = [...(prediction?.risks || [])].sort((a, b) => priority[b.level] - priority[a.level] || b.score - a.score)[0];
   return { ...layout, ...state, id: layout.id, cameraId: state?.id,
+    snapshotUrl: ({ 'camera-1': 'http://127.0.0.1:8080/snapshot.jpg', 'camera-2': 'http://127.0.0.1:8081/snapshot.jpg', 'camera-3': 'http://127.0.0.1:8083/snapshot.jpg', 'camera-4': 'http://127.0.0.1:8084/snapshot.jpg' })[state?.id],
     riskLevel: prediction?.overall_risk?.toLowerCase() || 'unknown',
     riskScore: risk?.score ?? '—',
     timeToCpa: risk?.time_to_closest_approach_s == null ? '—' : risk.time_to_closest_approach_s + '초',
@@ -33,13 +35,31 @@ function StatusBadge({ camera }) {
 }
 
 function CameraFeed({ camera, large = false }) {
+  const [imageAvailable, setImageAvailable] = useState(true);
+  const [imageVersion, setImageVersion] = useState(Date.now());
+
+  useEffect(() => {
+    if (!camera.snapshotUrl) return undefined;
+    const timer = window.setInterval(() => setImageVersion(Date.now()), 1500);
+    return () => window.clearInterval(timer);
+  }, [camera.snapshotUrl]);
+
   return (
     <div className={`camera-feed camera-feed--${camera.id}${large ? ' camera-feed--large' : ''}`}>
+      {camera.snapshotUrl && (
+        <img
+          className="camera-feed__image"
+          src={`${camera.snapshotUrl}?t=${imageVersion}`}
+          alt={`${camera.name} 실시간 영상`}
+          onLoad={() => setImageAvailable(true)}
+          onError={() => setImageAvailable(false)}
+        />
+      )}
       <div className="camera-feed__top">
         <div><strong>{camera.name}</strong><span>{camera.zone}</span></div>
         <span className="camera-feed__live">{camera.status}</span>
       </div>
-      <div className="camera-feed__empty"><FiVideo /><span>영상 미연결</span></div>
+      {(!camera.snapshotUrl || !imageAvailable) && <div className="camera-feed__empty"><FiVideo /><span>영상 연결 대기 중</span></div>}
       {camera.box && camera.imageWidth > 0 && camera.imageHeight > 0 && (
         <div className={`camera-feed__bounding-box camera-feed__bounding-box--${camera.riskLevel}`} style={{ left: `${camera.box.x1 / camera.imageWidth * 100}%`, top: `${camera.box.y1 / camera.imageHeight * 100}%`, width: `${(camera.box.x2 - camera.box.x1) / camera.imageWidth * 100}%`, height: `${(camera.box.y2 - camera.box.y1) / camera.imageHeight * 100}%` }}><span>지게차 · {camera.forkliftId}</span></div>
       )}
@@ -55,6 +75,7 @@ function CameraCard({ camera, onSelect }) {
       <div className="camera-card__summary">
         <StatusBadge camera={camera} />
         <dl>
+          <div><dt>위험 점수</dt><dd>{camera.riskScore} / 100</dd></div>
           <div><dt>최근접 예상 시간</dt><dd>{camera.timeToCpa}</dd></div>
           <div><dt>현재 거리</dt><dd>{camera.distance}</dd></div>
           <div><dt>최고 위험 객체</dt><dd>{camera.forkliftId} · {camera.workerId}</dd></div>
@@ -112,11 +133,12 @@ function DashboardPage() {
   const activeTab = cameras.find((camera) => camera.cameraId && camera.cameraId === searchParams.get('cameraId'))?.id || (requestedCamera >= 1 && requestedCamera <= cameras.length ? requestedCamera : 'all');
   function setActiveTab(id) { setSearchParams(id === 'all' ? {} : { cctv: String(id) }); }
   const selectedCamera = cameras.find((camera) => camera.id === activeTab);
+
   return (
     <div className="dashboard">
       <div className="dashboard__heading">
         <div><h1>통합 관제 대시보드</h1></div>
-        <span className="dashboard__connection"><i /> 분석 연동 · 영상 미연결</span>
+        <span className="dashboard__connection"><i /> 분석 연동 · CCTV 스냅샷</span>
       </div>
       <div className="dashboard__tabs" role="tablist">
         <button className={activeTab === 'all' ? 'is-active' : ''} onClick={() => setActiveTab('all')}>전체</button>

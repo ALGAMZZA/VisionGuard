@@ -34,6 +34,7 @@ public class RiskEvent {
     private Instant endedAt;
     private Long frameCount;
     @Column(length = 32) private String endReason;
+    @Column(length = 1024) private String videoPath;
 
     protected RiskEvent() {}
     public static RiskEvent start(String cameraId, String streamId, String scopeKey,
@@ -63,6 +64,8 @@ public class RiskEvent {
     public Instant getEndedAt() { return endedAt; }
     public Long getFrameCount() { return frameCount; }
     public String getEndReason() { return endReason; }
+    public String getVideoPath() { return videoPath; }
+    public void attachVideoPath(String videoPath) { this.videoPath = videoPath; }
     public String getStatus() { return scopeKey == null ? "LEGACY" : endedAt == null ? "OPEN" : "CLOSED"; }
 
     public RiskEvent(String cameraId, String frameId, Instant capturedAt,

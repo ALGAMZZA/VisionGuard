@@ -6,10 +6,8 @@ import { riskLevelLabels } from '../utils/riskEvent';
 import './LiveMapPage.css';
 
 const cctvs = [
-  { id: 1, x: 15, y: 29, zone: 'ZONE A', status: 'demo' },
-  { id: 2, x: 67, y: 24, zone: 'ZONE B', status: 'demo' },
-  { id: 3, x: 20, y: 72, zone: 'DOCK C', status: 'demo' },
-  { id: 4, x: 80, y: 69, zone: 'LINE D', status: 'demo' },
+  { id: 1, cameraId: 'camera-1', x: 25, y: 35, zone: 'ZONE_01' },
+  { id: 2, cameraId: 'camera-2', x: 70, y: 35, zone: 'ZONE_02' },
 ];
 
 const demoObjects = [

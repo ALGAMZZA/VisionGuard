@@ -5,7 +5,9 @@ import com.algamza.visionguard.ai.AiUnavailableException;
 import com.algamza.visionguard.ai.PredictionResult;
 import com.algamza.visionguard.event.RiskEvent;
 import com.algamza.visionguard.event.RiskEventRepository;
+import com.algamza.visionguard.event.EventClipService;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -58,6 +60,7 @@ public class AnalysisService {
     private final String mode;
     private final TransactionTemplate transaction;
     private final long maxGapMs;
+    private EventClipService eventClips;
 
     /*
      * 실시간 관제 화면용.
@@ -106,11 +109,16 @@ public class AnalysisService {
                 );
     }
 
+    @Autowired
+    void setEventClipService(EventClipService eventClips) {
+        this.eventClips = eventClips;
+    }
+
 
     /*
      * 프레임 한 장 분석
      */
-    public synchronized AnalysisResponse analyze(
+    public AnalysisResponse analyze(
             byte[] image,
             String cameraId,
             String streamId,
@@ -236,6 +244,10 @@ public class AnalysisService {
                             );
                         }
                     });
+
+            if (eventClips != null) {
+                eventClips.acceptFrame(cameraId, at, fps, image);
+            }
 
 
             final PredictionResult prediction;
@@ -455,6 +467,18 @@ public class AnalysisService {
                             risk.level(),
                             json
                     );
+                }
+
+                if (
+                        eventClips != null
+                                && risk.level() == PredictionResult.RiskLevel.DANGER
+                ) {
+                eventClips.trigger(
+                        event.getId(),
+                        cameraId,
+                        at,
+                        fps
+                );
                 }
 
 
