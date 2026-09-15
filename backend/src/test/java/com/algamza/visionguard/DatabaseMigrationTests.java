@@ -46,10 +46,20 @@ class DatabaseMigrationTests {
         }
     }
 
-    @Test void emptyDatabaseRunsV1AndSecondRunDoesNothing() {
-        var flyway = flyway(database());
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(1);
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("1");
+    void assertVideoPathColumnExists(String url) throws Exception {
+        try (var connection = DriverManager.getConnection(url, "sa", "");
+             var result = connection.createStatement().executeQuery("SELECT video_path FROM risk_events")) {
+            assertThat(result.getMetaData().getColumnType(1)).isEqualTo(java.sql.Types.VARCHAR);
+            assertThat(result.getMetaData().getPrecision(1)).isEqualTo(1024);
+        }
+    }
+
+    @Test void emptyDatabaseRunsThroughV2AndSecondRunDoesNothing() throws Exception {
+        String url = database();
+        var flyway = flyway(url);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("2");
+        assertVideoPathColumnExists(url);
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         flyway.validate();
     }
@@ -67,8 +77,10 @@ class DatabaseMigrationTests {
         legacySchema(url);
         flyway(url).baseline();
         var normal = flyway(url);
+        assertThat(normal.migrate().migrationsExecuted).isEqualTo(1);
+        assertThat(normal.info().current().getVersion().getVersion()).isEqualTo("2");
+        assertVideoPathColumnExists(url);
         assertThat(normal.migrate().migrationsExecuted).isZero();
-        assertThat(normal.info().current().getType().name()).isEqualTo("BASELINE");
         normal.validate();
         assertDataPreserved(url);
     }

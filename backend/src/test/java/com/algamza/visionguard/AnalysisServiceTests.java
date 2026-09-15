@@ -137,6 +137,36 @@ class AnalysisServiceTests {
         } finally { pool.shutdownNow(); }
     }
 
+    @Test void anotherCameraCanAnalyzeAndEndWhileFirstCameraIsInferring() throws Exception {
+        var instance = new AnalysisService(ai, events, frames, completions, mapper,
+                transactionManager, "camera-1", "http", 2000);
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        when(ai.predict(any(), anyString(), anyString(), anyString(), anyDouble())).thenAnswer(call -> {
+            if ("camera-1".equals(call.getArgument(1))) {
+                entered.countDown();
+                if (!release.await(10, TimeUnit.SECONDS)) throw new AssertionError("test timed out");
+            }
+            return prediction(risk(WARNING, 1, 2));
+        });
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var first = pool.submit(() -> instance.analyze(new byte[]{1}, "camera-1", "stream-1", "1", start, 30));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            var second = pool.submit(() -> {
+                var response = instance.analyze(new byte[]{1}, "camera-2", "stream-1", "1", start, 30);
+                assertThat(instance.endStream("camera-2", "stream-1", start).closedEventIds())
+                        .containsExactly(response.eventId());
+                return response;
+            });
+            assertThat(second.get(5, TimeUnit.SECONDS).cameraId()).isEqualTo("camera-2");
+            assertThat(first.isDone()).isFalse();
+            release.countDown();
+            assertThat(first.get(5, TimeUnit.SECONDS).cameraId()).isEqualTo("camera-1");
+            assertThat(events.count()).isEqualTo(2);
+        } finally { release.countDown(); pool.shutdownNow(); }
+    }
+
     @Test void gapAndReappearanceStartNewEvents() {
         respond(prediction(risk(WARNING, 1, 2)), prediction(risk(WARNING, 1, 2)),
                 prediction(), prediction(risk(WARNING, 1, 2)));
