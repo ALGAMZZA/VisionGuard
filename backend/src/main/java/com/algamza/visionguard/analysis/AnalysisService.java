@@ -61,6 +61,15 @@ public class AnalysisService {
     private final TransactionTemplate transaction;
     private final long maxGapMs;
     private EventClipService eventClips;
+    // Retain each lock so queued requests never acquire different locks for one camera.
+    private final Map<String, Object> cameraLocks = new ConcurrentHashMap<>();
+
+    private Object cameraLock(String cameraId) {
+        if (cameraId == null || cameraId.isBlank() || cameraId.length() > 100) {
+            throw new IllegalArgumentException("cameraId must contain 1 to 100 characters");
+        }
+        return cameraLocks.computeIfAbsent(cameraId, ignored -> new Object());
+    }
 
     /*
      * 실시간 관제 화면용.
@@ -119,6 +128,15 @@ public class AnalysisService {
      * 프레임 한 장 분석
      */
     public AnalysisResponse analyze(
+            byte[] image, String cameraId, String streamId, String frameId,
+            Instant capturedAt, double fps
+    ) {
+        synchronized (cameraLock(cameraId)) {
+            return analyzeLocked(image, cameraId, streamId, frameId, capturedAt, fps);
+        }
+    }
+
+    private AnalysisResponse analyzeLocked(
             byte[] image,
             String cameraId,
             String streamId,
@@ -577,7 +595,13 @@ public class AnalysisService {
     /*
      * Stream 종료
      */
-    public synchronized StreamEndResponse endStream(
+    public StreamEndResponse endStream(String cameraId, String streamId, Instant endedAt) {
+        synchronized (cameraLock(cameraId)) {
+            return endStreamLocked(cameraId, streamId, endedAt);
+        }
+    }
+
+    private StreamEndResponse endStreamLocked(
             String cameraId,
             String streamId,
             Instant endedAt
