@@ -1,6 +1,7 @@
 import apiClient from './client';
 
 export const DEFAULT_CAMERA_ID = process.env.REACT_APP_CAMERA_ID || 'camera-1';
+export const CAMERA_IDS = [...new Set((process.env.REACT_APP_CAMERA_IDS || `${DEFAULT_CAMERA_ID},camera-2`).split(',').map((id) => id.trim()).filter(Boolean))];
 
 /** 이미지 한 장을 분석합니다. 같은 스트림은 이전 요청을 await한 뒤 호출하세요.
  * 재시도 시 file과 모든 메타데이터를 그대로 재사용해야 합니다.

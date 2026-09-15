@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FiAlertTriangle, FiCamera, FiRadio, FiTruck, FiUser, FiWifi } from 'react-icons/fi';
+import useLatestAnalyses from '../hooks/useLatestAnalyses';
 import { riskLevelLabels } from '../utils/riskEvent';
-import { getLatestAnalysis } from '../api/visionGuardApi';
 import './LiveMapPage.css';
 
 const cctvs = [
@@ -10,34 +10,14 @@ const cctvs = [
   { id: 2, cameraId: 'camera-2', x: 70, y: 35, zone: 'ZONE_02' },
 ];
 
-const riskRank = { safe: 0, warning: 1, danger: 2 };
-
-function objectsFromAnalyses(analyses) {
-  return Object.values(analyses).flatMap((analysis) => {
-    const prediction = analysis?.prediction || {};
-    const width = Number(prediction.image_width) || 1;
-    const height = Number(prediction.image_height) || 1;
-    const risks = Array.isArray(prediction.risks) ? prediction.risks : [];
-    return (prediction.detections || []).map((detection, index) => {
-      const type = detection.class_name === 'forklift' ? 'forklift' : 'worker';
-      const trackId = detection.track_id;
-      const related = risks.filter((risk) => type === 'forklift'
-        ? risk.forklift_track_id === trackId : risk.person_track_id === trackId);
-      const highest = related.reduce((best, risk) => (
-        !best || riskRank[String(risk.level).toLowerCase()] > riskRank[String(best.level).toLowerCase()] ? risk : best
-      ), null);
-      const bbox = detection.bbox || {};
-      return {
-        id: `${type === 'forklift' ? 'F' : 'W'}-${trackId ?? index + 1}`,
-        type,
-        x: Math.max(3, Math.min(97, ((Number(bbox.x1) + Number(bbox.x2)) / 2 / width) * 100)),
-        y: Math.max(5, Math.min(95, (Number(bbox.y2) / height) * 100)),
-        location: analysis.cameraId,
-        risk: String(highest?.level || 'SAFE').toLowerCase(),
-      };
-    });
-  });
-}
+const demoObjects = [
+  { id: 'F-02', type: 'forklift', x: 47, y: 48, location: 'B구역 교차로', risk: 'danger' },
+  { id: 'W-04', type: 'worker', x: 52, y: 55, location: 'B구역 통로', risk: 'danger' },
+  { id: 'F-01', type: 'forklift', x: 72, y: 68, location: 'D구역 도크', risk: 'safe' },
+  { id: 'W-02', type: 'worker', x: 21, y: 59, location: 'A구역 라인 1', risk: 'safe' },
+  { id: 'F-03', type: 'forklift', x: 64, y: 37, location: 'C구역 자재장', risk: 'warning' },
+  { id: 'W-01', type: 'worker', x: 18, y: 31, location: 'A구역 검사실', risk: 'safe' },
+];
 
 function FloorPlan() {
   return (
@@ -51,53 +31,44 @@ function FloorPlan() {
 
 function LiveMapPage() {
   const [filter, setFilter] = useState('all');
-  const [analyses, setAnalyses] = useState({});
-  const [connected, setConnected] = useState(false);
-  useEffect(() => {
-    let active = true;
-    async function refresh() {
-      const results = await Promise.allSettled(cctvs.map((camera) => getLatestAnalysis(camera.cameraId)));
-      if (!active) return;
-      const next = {};
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') next[cctvs[index].cameraId] = result.value;
-      });
-      setAnalyses(next);
-      setConnected(results.some((result) => result.status === 'fulfilled'));
-    }
-    refresh();
-    const timer = window.setInterval(refresh, 1000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, []);
-  const objects = useMemo(() => objectsFromAnalyses(analyses), [analyses]);
+  const cameras = useLatestAnalyses();
+  const priority = { SAFE: 0, WARNING: 1, DANGER: 2 };
+  const risks = cameras.flatMap((camera) => (camera.analysis?.prediction.risks || []).map((risk) => ({ ...risk, cameraId: camera.id })));
+  const highest = [...risks].sort((a, b) => priority[b.level] - priority[a.level] || b.score - a.score)[0];
+  const objects = cameras.flatMap((camera) => (camera.analysis?.prediction.detections || []).map((object, index) => {
+    const level = (camera.analysis.prediction.risks || []).filter((risk) => risk.person_index === index || risk.forklift_index === index).reduce((level, risk) => priority[risk.level] > priority[level] ? risk.level : level, 'SAFE');
+    return { id: camera.id + ':' + object.class_name + ':' + (object.track_id ?? index),
+      label: (object.class_name === 'person' ? 'W-' : 'F-') + (object.track_id ?? '미확정'),
+      type: object.class_name === 'person' ? 'worker' : 'forklift', risk: level.toLowerCase(),
+      location: camera.id + ' · 영상 좌표 (' + Math.round((object.bbox.x1 + object.bbox.x2) / 2) + ', ' + Math.round(object.bbox.y2) + ')',
+    };
+  }));
+  const mapObjects = filter === 'all' ? demoObjects : filter === 'risk' ? demoObjects.filter((object) => object.risk !== 'safe') : demoObjects.filter((object) => object.type === filter);
   const visibleObjects = filter === 'all' ? objects : filter === 'risk' ? objects.filter((object) => object.risk !== 'safe') : objects.filter((object) => object.type === filter);
-  const risks = Object.values(analyses).flatMap((analysis) => analysis.prediction?.risks || []);
-  const highestRisk = risks.reduce((best, risk) => !best || Number(risk.score) > Number(best.score) ? risk : best, null);
-  const dangerPair = highestRisk ? [`F-${highestRisk.forklift_track_id ?? '—'}`, `W-${highestRisk.person_track_id ?? '—'}`] : ['—', '—'];
-  const highestLevel = String(highestRisk?.level || 'SAFE').toLowerCase();
+  const dangerPair = [{ id: highest?.person_track_id ?? '—' }, { id: highest?.forklift_track_id ?? '—' }];
 
   return (
     <div className="live-control">
-      <header className="live-control__heading"><div><h1>실시간 도면 관제</h1></div><span><FiWifi /> {connected ? 'LIVE' : '연결 대기'}</span></header>
-      <div className="live-control__summary"><article><span>현재 탐지 객체</span><strong>{objects.length}<small>개체</small></strong><p>지게차 {objects.filter((object) => object.type === 'forklift').length} · 작업자 {objects.filter((object) => object.type === 'worker').length}</p></article><article className={highestLevel === 'danger' ? 'is-danger' : ''}><span>위험 근접 객체</span><strong>{objects.filter((object) => object.risk !== 'safe').length}<small>개체</small></strong><p>{highestRisk ? `최고 위험 점수 ${Math.round(highestRisk.score)}점` : '현재 위험 객체가 없습니다'}</p></article></div>
+      <header className="live-control__heading"><div><h1>실시간 도면 관제</h1></div><span><FiWifi /> 분석 연동</span></header>
+      <div className="live-control__summary"><article><span>탐지 객체</span><strong>{objects.length}<small>개체</small></strong><p>지게차 {objects.filter((object) => object.type === 'forklift').length} · 작업자 {objects.filter((object) => object.type === 'worker').length}</p></article><article className="is-danger"><span>위험 근접 경보</span><strong>{risks.filter((risk) => risk.level !== 'SAFE').length}<small>건</small></strong><p>카메라별 최근 분석 기준</p></article></div>
       <section className="live-control__filters"><span>표시 항목</span>{[['all', '전체'], ['forklift', '지게차'], ['worker', '작업자'], ['risk', '위험 발생']].map(([key, label]) => <button className={filter === key ? 'is-active' : ''} key={key} onClick={() => setFilter(key)}>{label}</button>)}</section>
 
       <div className="live-control__layout">
         <section className="live-map-panel">
-          <div className="live-map-panel__top"><span>FACILITY BLUEPRINT</span><b>실시간 연동</b></div>
+          <div className="live-map-panel__top"><span>FACILITY BLUEPRINT</span><b>도면 위치 예시</b></div>
           <div className="live-map">
             <FloorPlan />
-            {highestRisk && <div className="live-map__danger-zone"><FiAlertTriangle /><strong>{riskLevelLabels[String(highestRisk.level)]}</strong><span>최근접 예상 시간 {highestRisk.time_to_closest_approach_s == null ? '—' : `${highestRisk.time_to_closest_approach_s.toFixed(1)}초`}</span></div>}
+            <div className="live-map__danger-zone"><FiAlertTriangle /><strong>충돌 위험</strong><span>예시 · 최근접 예상 시간 1.2초</span></div>
             {cctvs.map((camera) => <Link className="live-map__cctv" key={camera.id} to={`/?cctv=${camera.id}`} style={{ left: `${camera.x}%`, top: `${camera.y}%` }} title={`CCTV ${camera.id} 상세 화면으로 이동`}><FiCamera /><span>CAM-{String(camera.id).padStart(2, '0')}</span></Link>)}
-            {visibleObjects.map((object) => <button className={`live-map__object live-map__object--${object.type} live-map__object--${object.risk}`} key={object.id} style={{ left: `${object.x}%`, top: `${object.y}%` }} type="button" title={`${object.id} · ${riskLevelLabels[object.risk.toUpperCase()]}`}>{object.type === 'forklift' ? <FiTruck /> : <FiUser />}<span>{object.id}</span></button>)}
+            {mapObjects.map((object) => <button className={`live-map__object live-map__object--${object.type} live-map__object--${object.risk}`} key={object.id} style={{ left: `${object.x}%`, top: `${object.y}%` }} type="button" title={`${object.id} · ${riskLevelLabels[object.risk.toUpperCase()]}`}>{object.type === 'forklift' ? <FiTruck /> : <FiUser />}<span>{object.id}</span></button>)}
           </div>
-          <div className="live-map__legend"><span><i className="forklift" />지게차</span><span><i className="worker" />작업자</span><span><i className="danger" />위험 발생</span><b>{connected ? 'Backend 실시간 데이터' : '데이터 연결 대기'}</b></div>
+          <div className="live-map__legend"><span><i className="forklift" />지게차</span><span><i className="worker" />작업자</span><span><i className="danger" />위험 발생</span><b>도면 위치는 예시 · 우측은 분석 결과</b></div>
         </section>
 
         <aside className="telemetry">
-          <section className="telemetry__risk"><div className="telemetry__title"><strong><FiAlertTriangle /> 최고 위험 근접 쌍</strong><em>{highestRisk?.level || 'SAFE'}</em></div><h2>{dangerPair[0]} ↔ {dangerPair[1]}<span>{highestRisk ? `${Math.round(highestRisk.score)}점` : '—'}</span></h2><div className="telemetry__metrics"><div><span>현재 거리</span><b>{highestRisk ? `${Math.round(highestRisk.distance_px)} px` : '—'}</b></div><div><span>최근접 예상 시간</span><b>{highestRisk?.time_to_closest_approach_s == null ? '—' : `${highestRisk.time_to_closest_approach_s.toFixed(1)}초`}</b></div></div><p>{highestRisk?.reason || '현재 위험 쌍이 없습니다.'}</p></section>
-          <section className="telemetry__objects"><div className="telemetry__tabs"><b>전체 ({objects.length})</b><span>위험 ({objects.filter((item) => item.risk !== 'safe').length})</span></div>{visibleObjects.map((object) => <article className={`telemetry-object telemetry-object--${object.risk}`} key={object.id}><div><i />{object.type === 'forklift' ? <FiTruck /> : <FiUser />}<strong>{object.id}</strong><em>{riskLevelLabels[object.risk.toUpperCase()]}</em></div><p>예시 위치: {object.location}</p></article>)}</section>
-          <div className="telemetry__notice"><FiRadio /> 객체 위치는 CCTV 화면 좌표 기준</div>
+          <section className="telemetry__risk"><div className="telemetry__title"><strong><FiAlertTriangle /> 최고 위험 근접 쌍</strong><em>{highest?.level || '—'}</em></div><h2>{dangerPair[0].id} ↔ {dangerPair[1].id}<span>{highest ? highest.distance_px + ' px' : '—'}</span></h2><div className="telemetry__metrics"><div><span>현재 거리</span><b>{highest ? highest.distance_px + ' px' : '—'}</b></div><div><span>최근접 예상 시간</span><b>{highest?.time_to_closest_approach_s == null ? '—' : highest.time_to_closest_approach_s + '초'}</b></div></div><p>{highest ? highest.cameraId + ' · ' + highest.reason : '분석 결과 대기 중'}</p></section>
+          <section className="telemetry__objects"><div className="telemetry__tabs"><b>전체 ({objects.length})</b><span>위험 ({objects.filter((item) => item.risk !== 'safe').length})</span></div>{visibleObjects.map((object) => <article className={`telemetry-object telemetry-object--${object.risk}`} key={object.id}><div><i />{object.type === 'forklift' ? <FiTruck /> : <FiUser />}<strong>{object.label}</strong><em>{riskLevelLabels[object.risk.toUpperCase()]}</em></div><p>{object.location}</p></article>)}</section>
+          <div className="telemetry__notice">{cameras.map((camera) => <p key={camera.id} role="status">{camera.id}: {camera.loading ? '조회 중' : camera.error || (camera.stale ? '갱신 지연 · 마지막 분석 결과입니다.' : camera.analysis?.aiMode === 'mock' ? 'MOCK · 모의 분석' : '최근 분석')}</p>)}<FiRadio /> 경광등·사이렌 제어 미연동</div>
         </aside>
       </div>
     </div>
