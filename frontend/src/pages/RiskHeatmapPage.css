@@ -267,7 +267,6 @@
   padding: 18px 14px 24px;
   background-image: linear-gradient(#262626 1px, transparent 1px);
   background-size: 100% 25%;
-  overflow-x: auto;
 }
 
 .heatmap-chart__bar {
@@ -278,15 +277,7 @@
   flex-direction: column;
   justify-content: flex-end;
   gap: 8px;
-  min-width: 32px;
-  flex-shrink: 0;
 }
-
-.heatmap-chart__bar i {
-  flex-shrink: 0;
-}
-
-.heatmap-chart__bar b { font-size: 10px; }
 
 .heatmap-chart__bar i {
   width: min(18px, 70%);

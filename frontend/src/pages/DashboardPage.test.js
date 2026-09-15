@@ -14,13 +14,16 @@ test('uses latest analysis, distinguishes missing data, and filters recent histo
     cameraId: id, streamId: 'stream-2', aiMode: 'mock', capturedAt: '2020-01-01T00:00:00Z',
     prediction: { overall_risk: 'DANGER', detections: [], risks: [{ level: 'DANGER', score: 87, distance_px: 42, person_track_id: 0, forklift_track_id: 3, time_to_closest_approach_s: null }] },
   }));
-  const { unmount } = render(<MemoryRouter><DashboardPage /></MemoryRouter>);
-  expect(await screen.findByText('87 / 100')).toBeInTheDocument();
-  expect(screen.getByText('42 px')).toBeInTheDocument();
+  const { unmount, container } = render(<MemoryRouter><DashboardPage /></MemoryRouter>);
+  expect(container.querySelectorAll('.camera-card')).toHaveLength(4);
+  expect(await screen.findByText('42 px')).toBeInTheDocument();
   expect(screen.getByText('분석 데이터 대기 중')).toBeInTheDocument();
   expect(screen.getByText('갱신 지연 · 마지막 분석 결과입니다.')).toBeInTheDocument();
-  expect(screen.getByText('0 / 3')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'camera-2' }));
+  expect(screen.getByText('3 · 0')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'CCTV 2' }));
+  expect(container.querySelector('.dashboard__single-view')).toBeInTheDocument();
+  expect(container.querySelector('.camera-detail__gauge i')).toHaveStyle({ width: '87%' });
+  expect(screen.getByText('87')).toBeInTheDocument();
   await waitFor(() => expect(getRiskEvents).toHaveBeenLastCalledWith({ cameraId: 'camera-2', size: 4 }, expect.anything()));
   expect(await screen.findByRole('link', { name: /DANGER|위험/ })).toHaveAttribute('href', '/alerts?eventId=7');
   const signal = getLatestAnalysis.mock.calls[0][1].signal;
