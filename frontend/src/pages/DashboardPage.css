@@ -189,6 +189,49 @@
   object-fit: cover;
 }
 
+.camera-feed__detections {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.camera-feed__detection rect {
+  fill: transparent;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.camera-feed__detection text {
+  font: 700 13px monospace;
+  paint-order: stroke;
+  stroke: #111;
+  stroke-width: 3px;
+}
+
+.camera-feed__detection--person rect,
+.camera-feed__detection--person text {
+  stroke: #ff9500;
+  fill: #ff9500;
+}
+
+.camera-feed__detection--person rect,
+.camera-feed__detection--forklift rect {
+  fill: transparent;
+}
+
+.camera-feed__detection--forklift rect,
+.camera-feed__detection--forklift text {
+  stroke: #ff3b30;
+  fill: #ff3b30;
+}
+
+.camera-feed__detection--forklift rect {
+  fill: transparent;
+}
+
 .camera-feed::after {
   position: absolute;
   inset: 0;
