@@ -62,6 +62,7 @@ class Detection(SchemaModel):
     confidence: float = Field(ge=0, le=1)
     bbox: BoundingBox
     track_id: int | None = Field(default=None, ge=0)
+    is_predicted: bool = False
 
 
 class RiskResult(SchemaModel):
@@ -70,7 +71,12 @@ class RiskResult(SchemaModel):
     level: RiskLevel
     person_index: int = Field(ge=0)
     forklift_index: int = Field(ge=0)
+    person_track_id: int | None = Field(default=None, ge=0)
+    forklift_track_id: int | None = Field(default=None, ge=0)
     distance_px: float = Field(ge=0)
+    future_distance_px: float = Field(ge=0)
+    time_to_closest_approach_s: float | None = Field(default=None, ge=0)
+    score: float = Field(ge=0, le=100)
     reason: str
 
 
@@ -84,4 +90,3 @@ class PredictionResult(SchemaModel):
     risks: list[RiskResult] = Field(default_factory=list)
     overall_risk: RiskLevel = RiskLevel.SAFE
     processing_time_ms: float = Field(ge=0)
-

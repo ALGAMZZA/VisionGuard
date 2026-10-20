@@ -1,13 +1,19 @@
-numpy
-pandas
-matplotlib
-scikit-learn
-xgboost
-tensorflow
-fastapi
-pydantic>=2.0,<3.0
-uvicorn
-requests
-pyspark
-jupyter
-ipykernel
+# Inference and YOLO training runtime
+numpy>=2.0,<3.0
+opencv-python>=4.10,<6.0
+ultralytics>=8.3,<9.0
+deep-sort-realtime>=1.3.2,<2.0
+# deep-sort-realtime 1.3.2 still imports pkg_resources.
+setuptools>=70,<81
+
+# Prediction API
+fastapi>=0.115,<1.0
+pydantic>=2.9,<3.0
+python-multipart>=0.0.12,<1.0
+uvicorn[standard]>=0.30,<1.0
+
+# Dataset preparation and evaluation
+pandas>=2.2,<3.0
+pyarrow>=17
+scikit-learn>=1.5,<2.0
+PyYAML>=6.0,<7.0

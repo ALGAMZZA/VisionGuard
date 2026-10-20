@@ -35,3 +35,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local video smoke-test reports ###
+/reports/
+/scripts/**/__pycache__/

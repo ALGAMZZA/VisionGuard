@@ -1,24 +1,34 @@
-import logo from './logo.svg';
+import { useState } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import Header from './components/Header/Header';
+import Sidebar from './components/Sidebar/Sidebar';
+import AlertHistoryPage from './pages/AlertHistoryPage';
+import DashboardPage from './pages/DashboardPage';
+import LiveMapPage from './pages/LiveMapPage';
+import RiskHeatmapPage from './pages/RiskHeatmapPage';
 import './App.css';
 
 function App() {
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <BrowserRouter>
+      <div className={`app-shell${isSidebarExpanded ? ' app-shell--sidebar-expanded' : ''}`}>
+        <Sidebar
+          isExpanded={isSidebarExpanded}
+          onToggle={() => setIsSidebarExpanded((current) => !current)}
+        />
+        <Header isSidebarExpanded={isSidebarExpanded} />
+        <main className="app-content">
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/alerts" element={<AlertHistoryPage />} />
+            <Route path="/risk-heatmap" element={<RiskHeatmapPage />} />
+            <Route path="/live-map" element={<LiveMapPage />} />
+          </Routes>
+        </main>
+      </div>
+    </BrowserRouter>
   );
 }
 
